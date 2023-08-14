@@ -327,6 +327,56 @@ public class InfoClass
         return Calculated;
         #endregion Free to edit, but only for adding operators!
     }
+    public string LastFormatting(string input)
+    {
+        Regex regex;
+        MatchCollection matchCollection;
+        int LeftParenthesis;
+        int RightParenthesis;
+        int Amount = 0;
+
+        //Fjern -1 \cdot
+        input = input.Replace(@"1 \cdot ", "");
+
+        //Parenthesis around negative values after \cdot
+        regex = new(@"\\cdot (-\d+(\,\d+)?)");
+        matchCollection = regex.Matches(input);
+        foreach (Match match in matchCollection.Cast<Match>())
+        {
+            LeftParenthesis = match.Index + 6 + Amount;
+            RightParenthesis = match.Value[6..].Length + LeftParenthesis + 1;
+            input = input.Insert(LeftParenthesis, "(");
+            input = input.Insert(RightParenthesis, ")");
+            Amount += 2;
+        }
+
+        //Parenthesis around negative values after -
+        regex = new(@"- (-\d+(\,\d+)?)");
+        matchCollection = regex.Matches(input);
+        Amount = 0;
+        foreach (Match match in matchCollection.Cast<Match>())
+        {
+            LeftParenthesis = match.Index + 2 + Amount;
+            RightParenthesis = match.Value[2..].Length + LeftParenthesis + 1;
+            input = input.Insert(LeftParenthesis, "(");
+            input = input.Insert(RightParenthesis, ")");
+            Amount += 2;
+        }
+
+        //Parenthesis around negative values before ^
+        regex = new(@"(-\d+(\,\d+)?)\^");
+        matchCollection = regex.Matches(input);
+        Amount = 0;
+        foreach (Match match in matchCollection.Cast<Match>())
+        {
+            LeftParenthesis = match.Index + 2 + Amount;
+            RightParenthesis = match.Value[2..].Length + LeftParenthesis + 1;
+            input = input.Insert(LeftParenthesis, "(");
+            input = input.Insert(RightParenthesis, ")");
+            Amount += 2;
+        }
+        return input;
+    }
     public List<(string Expr, string LaTeX)> OperatorFormats = new()
     {
         ("sqrt", @"\sqrt"),

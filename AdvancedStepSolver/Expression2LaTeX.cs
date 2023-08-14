@@ -20,6 +20,8 @@ public class Expression2LaTeX
         Queue<string> postfixQueue = ConvertToPostfix(input);
         return EvaluatePostfix(postfixQueue);
     }
+
+    private List<string> CalcInputs = new();
     private Queue<string> ConvertToPostfix(string expression)
     {
         #region Do not edit!
@@ -44,37 +46,21 @@ public class Expression2LaTeX
         for (int i = 0; i < matches.Count; i++)
         {
             string Operator = matches[i].Value;
+            CalcInputs.Add(Operator);
             if (Operator == "-" && (i == 0 || IsOperator(matches[i - 1].ToString()).Item1 || matches[i - 1].ToString() == "("))
             {
-                //Console.WriteLine("If1 = "+true);
-                // Håndter negativ operator og lav det til en Operator for sig selv
                 outputQueue.Enqueue($"-1");
                 operatorStack.Push("*");
             }
             else if (double.TryParse(Operator, NumberStyles.Any, CultureInfo.InvariantCulture, out _))
-            {
-                //Console.WriteLine("If2 = " + true);
                 outputQueue.Enqueue(Operator);
-            }
             else if (Operator == "(")
-            {
-                //Console.WriteLine("If3 = " + true);
                 operatorStack.Push(Operator);
-            }
             else if (Operator == ")")
-            {
-                //Console.WriteLine("If4 = " + true);
-                while (operatorStack.Count > 0 && operatorStack.Peek() != "(")
+                while (operatorStack.Count > 0)
                     outputQueue.Enqueue(operatorStack.Pop());
-
-                if (operatorStack.Count == 0 || operatorStack.Peek() != "(")
-                    throw new ArgumentException("Mismatched parentheses.");
-
-                operatorStack.Pop();
-            }
             else
             {
-                //Console.WriteLine("If5 = " + true);
                 while (operatorStack.Count > 0 && precedence.ContainsKey(operatorStack.Peek()) && precedence[Operator] <= precedence[operatorStack.Peek()])
                     outputQueue.Enqueue(operatorStack.Pop());
                 operatorStack.Push(Operator);
@@ -92,13 +78,14 @@ public class Expression2LaTeX
     }
     private string EvaluatePostfix(Queue<string> postfixQueue)
     {
-        //foreach (var item in postfixQueue)
-        //{
-        //    Console.WriteLine("Item = "+item);
-        //}
         Stack<string> valueStack = new();
+        bool NextParenthesis = false;
+        int i = 0;
         while (postfixQueue.Count > 0)
         {
+            if (CalcInputs[i] == "(" && NextParenthesis is false)
+                NextParenthesis = true;
+
             string Operator = postfixQueue.Dequeue();
             (bool, bool) isOperator = IsOperator(Operator);
             if (double.TryParse(Operator, NumberStyles.Any, CultureInfo.InvariantCulture, out double number))
@@ -112,65 +99,24 @@ public class Expression2LaTeX
                 string b = "";
                 if (!isOperator.Item2)
                     b = valueStack.Pop();
-                
-                valueStack.Push(infoClass.Converter(Operator, a, b));
+
+                string LaTeX = infoClass.Converter(Operator, a, b);
+
+                if (NextParenthesis)
+                    LaTeX = $"({LaTeX})";
+                valueStack.Push(LaTeX);
+
+                NextParenthesis = false;
             }
-            else
+            else if (Operator != "(" && Operator != ")")
                 throw new ArgumentException("Invalid operator in the expression.");
+            i++;
         }
 
         if (valueStack.Count < 1)
             throw new ArgumentException("Invalid expression.");
 
-        return LastFormatting(valueStack.Pop().ToString());
-    }
-    private string LastFormatting(string input)
-    {
-        Regex regex;
-        MatchCollection matchCollection;
-        int LeftParenthesis;
-        int RightParenthesis;
-        int Amount = 0;
-
-        //Fjern -1 \cdot
-        input = input.Replace(@"1 \cdot ", "");
-
-        //Parenthesis around negative values after \cdot
-        regex = new(@"\\cdot (-\d+(\,\d+)?)");
-        matchCollection = regex.Matches(input);
-        foreach (Match match in matchCollection.Cast<Match>())
-        {
-            LeftParenthesis = match.Index + 6 + Amount;
-            RightParenthesis = match.Value[6..].Length + LeftParenthesis + 1;
-            input = input.Insert(LeftParenthesis, "(");
-            input = input.Insert(RightParenthesis, ")");
-            Amount += 2;
-        }
-
-        //Parenthesis around negative values after -
-        regex = new(@"- (-\d+(\,\d+)?)");
-        matchCollection = regex.Matches(input);
-        Amount = 0;
-        foreach (Match match in matchCollection.Cast<Match>())
-        {
-            LeftParenthesis = match.Index + 2 + Amount;
-            RightParenthesis = match.Value[2..].Length + LeftParenthesis + 1;
-            input = input.Insert(LeftParenthesis, "(");
-            input = input.Insert(RightParenthesis, ")");
-            Amount += 2;
-        }
-
-        //Parenthesis around negative values before ^
-        regex = new(@"(-\d+(\,\d+)?)\^");
-        matchCollection = regex.Matches(input);
-        foreach (Match match in matchCollection.Cast<Match>())
-        {
-            LeftParenthesis = match.Index;
-            RightParenthesis = LeftParenthesis + match.Value[..^1].Length + 1;
-            input = input.Insert(LeftParenthesis, "(");
-            input = input.Insert(RightParenthesis, ")");
-        }
-        return input;
+        return infoClass.LastFormatting(valueStack.Pop().ToString());
     }
     private (bool, bool) IsOperator(string Operator)
     {
