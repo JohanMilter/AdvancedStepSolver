@@ -13,36 +13,40 @@ public class StringCalculator
     public List<string> ExplanationSteps = new();
     public List<(string, string)> CalculationStepsAndExplanation = new();
     private readonly int Decimals;
-    public StringCalculator(string input, int decimals)
+    public StringCalculator(string input, Dictionary<string, (int?, bool?)> Settings, int decimals)
     {
-        //If you want to add or remove operators, remember to change these methods: ConvertToPostfix, EvaluatePostfix, GetOperators
-        //If you want to add or remove constants, remember to change this method: ReplaceConstants
-        Decimals = decimals;
-        input = ReplaceConstants(infoClass.InsertParenthesisAround(input)).Replace(" ", "");
-        CalculationResult = System.Math.Round(CalculateExpression(input), Decimals);
-        for (int i = 0; i < CalculationSteps.Count; i++)
+        infoClass.Settings = Settings;
+        if (!string.IsNullOrEmpty(input))
         {
-            CalculationStepsAndExplanation.Add((CheckDivisionFormatting(input), ExplanationSteps[i]));
-            string Calc2 = System.Math.Round(double.Parse(CalculationSteps[i].Item2), decimals).ToString();
-            if (input.Contains($"({CalculationSteps[i].Item1})"))
-                input = input.Replace($"({CalculationSteps[i].Item1})", Calc2);
-            else
-                input = input.Replace($"{CalculationSteps[i].Item1}", Calc2);
+            //If you want to add or remove operators, remember to change these methods: ConvertToPostfix, EvaluatePostfix, GetOperators
+            //If you want to add or remove constants, remember to change this method: ReplaceConstants
+            Decimals = decimals;
+            input = ReplaceConstants(infoClass.PreCalculationFormatting(input.Replace(" ", "")));
+            CalculationResult = System.Math.Round(CalculateExpression(input), Decimals);
+            for (int i = 0; i < CalculationSteps.Count; i++)
+            {
+                CalculationStepsAndExplanation.Add((infoClass.AfterCalculationFormatting(CheckDivisionFormatting(input)), ExplanationSteps[i]));
+                string Calc2 = System.Math.Round(double.Parse(CalculationSteps[i].Item2), decimals).ToString();
+                if (input.Contains($"({CalculationSteps[i].Item1})"))
+                    input = input.Replace($"({CalculationSteps[i].Item1})", Calc2);
+                else
+                    input = input.Replace($"{CalculationSteps[i].Item1}", Calc2);
+            }
+            bool DidRemove = true;
+            while (DidRemove)
+            {
+                if (!DidRemove)
+                    break;
+                DidRemove = false;
+                for (int i = 0; i < CalculationStepsAndExplanation.Count; i++)
+                    if (CalculationStepsAndExplanation.Count != (i + 1) && CalculationStepsAndExplanation[i].Item1 == CalculationStepsAndExplanation[i + 1].Item1)
+                    {
+                        CalculationStepsAndExplanation.RemoveAt(i);
+                        DidRemove = true;
+                    }
+            }
+            CalculationStepsAndExplanation.Add((CalculationResult.ToString(), ""));
         }
-        bool DidRemove = true;
-        while (DidRemove)
-        {
-            if (!DidRemove)
-                break;
-            DidRemove = false;
-            for (int i = 0; i < CalculationStepsAndExplanation.Count; i++)
-                if (CalculationStepsAndExplanation.Count != (i + 1) && CalculationStepsAndExplanation[i].Item1 == CalculationStepsAndExplanation[i + 1].Item1)
-                {
-                    CalculationStepsAndExplanation.RemoveAt(i);
-                    DidRemove = true;
-                }
-        }
-        CalculationStepsAndExplanation.Add((CalculationResult.ToString(), ""));
     }
     #region CalculationResult Methods
     private string CheckDivisionFormatting(string input)
@@ -71,10 +75,7 @@ public class StringCalculator
     }
     private double CalculateExpression(string input)
     {
-        if (CultureInfo.InvariantCulture.NumberFormat.NumberDecimalSeparator == ".")
-            input = input.Replace(',', '.');
-        else if (CultureInfo.InvariantCulture.NumberFormat.NumberDecimalSeparator == ",")
-            input = input.Replace('.', ',');
+        input = input.Replace(',', '.');
         Queue<string> postfixQueue = ConvertToPostfix(input);
         return EvaluatePostfix(postfixQueue);
     }
@@ -157,7 +158,7 @@ public class StringCalculator
         Stack<double> valueStack = new();
         while (postfixQueue.Count > 0)
         {
-            string Operator = postfixQueue.Dequeue();
+            string Operator = postfixQueue.Dequeue().Replace(',', '.');
             (bool, bool) isOperator = IsOperator(Operator);
             if (double.TryParse(Operator, NumberStyles.Any, CultureInfo.InvariantCulture, out double number))
                 valueStack.Push(number);
