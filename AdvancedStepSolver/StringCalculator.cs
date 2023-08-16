@@ -1,5 +1,4 @@
 ﻿using System.Globalization;
-using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace AdvancedStepSolver;
@@ -7,71 +6,18 @@ namespace AdvancedStepSolver;
 public class StringCalculator
 {
     private readonly InfoClass infoClass = new();
-    public double CalculationResult;
-    public (double, string) CalculationResultAndExplanation = new();
-    public List<(string, string)> CalculationSteps = new();
-    public List<string> ExplanationSteps = new();
-    public List<(string, string)> CalculationStepsAndExplanation = new();
+    public double Result;
+    public string Expression = "";
+    public List<string> CalcSteps = new();
+    public List<string> TextSteps = new();
     private readonly int Decimals;
-    public StringCalculator(string input, Dictionary<string, (int?, bool?)> Settings, int decimals)
+    public StringCalculator(string expression, Dictionary<string, (int?, bool?)> settings, int decimals)
     {
-        infoClass.Settings = Settings;
-        if (!string.IsNullOrEmpty(input))
-        {
-            //If you want to add or remove operators, remember to change these methods: ConvertToPostfix, EvaluatePostfix, GetOperators
-            //If you want to add or remove constants, remember to change this method: ReplaceConstants
-            Decimals = decimals;
-            input = ReplaceConstants(infoClass.PreCalculationFormatting(input.Replace(" ", "")));
-            CalculationResult = System.Math.Round(CalculateExpression(input), Decimals);
-            for (int i = 0; i < CalculationSteps.Count; i++)
-            {
-                CalculationStepsAndExplanation.Add((infoClass.AfterCalculationFormatting(CheckDivisionFormatting(input)), ExplanationSteps[i]));
-                string Calc2 = System.Math.Round(double.Parse(CalculationSteps[i].Item2), decimals).ToString();
-                if (input.Contains($"({CalculationSteps[i].Item1})"))
-                    input = input.Replace($"({CalculationSteps[i].Item1})", Calc2);
-                else
-                    input = input.Replace($"{CalculationSteps[i].Item1}", Calc2);
-            }
-            bool DidRemove = true;
-            while (DidRemove)
-            {
-                if (!DidRemove)
-                    break;
-                DidRemove = false;
-                for (int i = 0; i < CalculationStepsAndExplanation.Count; i++)
-                    if (CalculationStepsAndExplanation.Count != (i + 1) && CalculationStepsAndExplanation[i].Item1 == CalculationStepsAndExplanation[i + 1].Item1)
-                    {
-                        CalculationStepsAndExplanation.RemoveAt(i);
-                        DidRemove = true;
-                    }
-            }
-            CalculationStepsAndExplanation.Add((CalculationResult.ToString(), ""));
-        }
-    }
-    #region CalculationResult Methods
-    private string CheckDivisionFormatting(string input)
-    {
-        Regex Parenthesis;
-        MatchCollection matchCollection;
-
-        Parenthesis = new(@"(-?\d+(\,\d+)?)/");
-        matchCollection = Parenthesis.Matches(input);
-        foreach (Match match in matchCollection.Cast<Match>())
-        {
-            int where = match.Index;
-            string number = match.Value[1..];
-            input = input.Insert(where + number.Length, ")").Insert(where, "(");
-        }
-
-        Parenthesis = new(@"/(-?\d+(\,\d+)?)");
-        matchCollection = Parenthesis.Matches(input);
-        foreach (Match match in matchCollection.Cast<Match>())
-        {
-            int where = match.Index;
-            string number = match.Value[1..];
-            input = input.Insert(where + number.Length + 1, ")").Insert(where + 1, "(");
-        }
-        return input;
+        Expression = infoClass.PreCalculationFormatting(ReplaceConstants(expression)).Replace(" ", "");
+        infoClass.Settings = settings;
+        Decimals = decimals;
+        CalcSteps.Add(Expression);
+        Result = CalculateExpression(Expression);
     }
     private double CalculateExpression(string input)
     {
@@ -86,7 +32,7 @@ public class StringCalculator
         #region Dont edit this!
         input = input.Replace(@" ", "");
         foreach ((string, double) constant in ConstantList)
-            input = input.Replace(constant.Item1, System.Math.Round(constant.Item2, Decimals).ToString());
+            input = input.Replace(constant.Item1, Math.Round(constant.Item2, Decimals).ToString());
         return input;
         #endregion
     }
@@ -172,7 +118,7 @@ public class StringCalculator
                 if (!isOperator.Item2)
                     b = valueStack.Pop();
                 #region Free to edit, but only for adding operators!
-                valueStack.Push(infoClass.Calculator(Operator, a, b, Decimals, CalculationSteps, ExplanationSteps));
+                valueStack.Push(infoClass.Calculator(Operator, a, b, Decimals, CalcSteps, TextSteps));
                 #endregion Free to edit, but only for adding operators!
             }
             else
@@ -189,10 +135,9 @@ public class StringCalculator
         List<(string, bool, int)> Operators = infoClass.GetOperators;
         #region Dont edit!
         foreach ((string, bool, int) op in Operators)
-            if (op.Item1 == Operator || (op.Item2 && Operator.StartsWith(op.Item1)))
+            if (op.Item1 == Operator || op.Item2 && Operator.StartsWith(op.Item1))
                 return (true, op.Item2);
         return (false, false);
         #endregion
     }
-    #endregion
 }

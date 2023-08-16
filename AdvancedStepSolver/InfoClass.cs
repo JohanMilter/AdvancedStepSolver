@@ -1,51 +1,83 @@
-﻿using System.Globalization;
+﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace AdvancedStepSolver;
 
 public class InfoClass
 {
-    // StringCalculator
-    public double Calculator(string Operator, double a, double b, int Decimals, List<(string, string)> CalculationSteps, List<string> ExplanationSteps)
+    public double Calculator(string Operator, double a, double b, int decimals, List<string> CalcSteps, List<string> TextSteps)
     {
-        double Calculated = 0;
-        double ConvertValue = 0;
-        string aPar;
-        string bPar;
+        //Return values
+        double Value = 0;
+        string[] Step = { "", "", "", "", "", "", "", "" };
+        string Text = "";
+
         switch (Operator)
         {
             case "^":
-                Calculated = System.Math.Round(System.Math.Pow(b, a), Decimals);
-                aPar = $"{a}";
-                if (a < 0 || !double.IsInteger(a))
-                    aPar = $"({aPar})";
-                bPar = $"{b}";
-                if (b < 0)
-                    bPar = $"({bPar})";
-
-                CalculationSteps.Add(($"{bPar}^{aPar}", Calculated.ToString()));
-                ExplanationSteps.Add($"Exponenten udregnes");
+                Value = System.Math.Round(System.Math.Pow(b, a), decimals);
+                Step[0] = $"(({b})^({a}))";
+                Step[1] = $"(({b})^{a})";
+                Step[2] = $"({b}^({a}))";
+                Step[3] = $"({b}^{a})";
+                Step[4] = $"({b})^({a})";
+                Step[5] = $"({b})^{a}";
+                Step[6] = $"{b}^({a})";
+                Step[7] = $"{b}^{a}";
+                Text = $"Exponenten udregnes";
                 break;
             case "*":
-                Calculated = System.Math.Round(b * a, Decimals);
-                CalculationSteps.Add(($"{b}*{a}", Calculated.ToString()));
-                ExplanationSteps.Add($"Der ganges");
+                Value = System.Math.Round(b * a, decimals);
+                Step[0] = $"(({b})*({a}))";
+                Step[1] = $"(({b})*{a})";
+                Step[2] = $"({b}*({a}))";
+                Step[3] = $"({b}*{a})";
+                Step[4] = $"({b})*({a})";
+                Step[5] = $"({b})*{a}";
+                Step[6] = $"{b}*({a})";
+                Step[7] = $"{b}*{a}";
+                Text = $"Der ganges";
                 break;
             case "/":
-                Calculated = System.Math.Round(b / a, Decimals);
-                CalculationSteps.Add(($"{b}/{a}", Calculated.ToString()));
-                ExplanationSteps.Add($"Der divideres");
+                Value = System.Math.Round(b / a, decimals);
+                Step[0] = $"(({b})/({a}))";
+                Step[1] = $"(({b})/{a})";
+                Step[2] = $"({b}/({a}))";
+                Step[3] = $"({b}/{a})";
+                Step[4] = $"({b})/({a})";
+                Step[5] = $"({b})/{a}";
+                Step[6] = $"{b}/({a})";
+                Step[7] = $"{b}/{a}";
+                Text = $"Der divideres";
                 break;
             case "+":
-                Calculated = System.Math.Round(b + a, Decimals);
-                CalculationSteps.Add(($"{b}+{a}", Calculated.ToString()));
-                ExplanationSteps.Add($"Der plusses");
+                Value = System.Math.Round(b + a, decimals);
+                Step[0] = $"(({b})+({a}))";
+                Step[1] = $"(({b})+{a})";
+                Step[2] = $"({b}+({a}))";
+                Step[3] = $"({b}+{a})";
+                Step[4] = $"({b})+({a})";
+                Step[5] = $"({b})+{a}";
+                Step[6] = $"{b}+({a})";
+                Step[7] = $"{b}+{a}";
+                Text = $"Der plusses";
                 break;
             case "-":
-                Calculated = System.Math.Round(b - a, Decimals);
-                CalculationSteps.Add(($"{b}-{a}", Calculated.ToString()));
-                ExplanationSteps.Add($"Der minuses");
+                Value = System.Math.Round(b - a, decimals);
+                Step[0] = $"(({b})-({a}))";
+                Step[1] = $"(({b})-{a})";
+                Step[2] = $"({b}-({a}))";
+                Step[3] = $"({b}-{a})";
+                Step[4] = $"({b})-({a})";
+                Step[5] = $"({b})-{a}";
+                Step[6] = $"{b}-({a})";
+                Step[7] = $"{b}-{a}";
+                Text = $"Der minuses";
                 break;
 
             default:
@@ -54,17 +86,19 @@ public class InfoClass
                     //sqrt
                     if (Operator == "sqrt")
                     {
-                        Calculated = System.Math.Round(System.Math.Sqrt(a), Decimals);
-                        CalculationSteps.Add(($"sqrt({a})", Calculated.ToString()));
-                        ExplanationSteps.Add($"Kvadratroden udregnes");
+                        Value = System.Math.Round(System.Math.Sqrt(a), decimals);
+                        Step[0] = $"(sqrt({a}))";
+                        Step[1] = $"sqrt({a})";
+                        Text = $"Kvadratroden udregnes";
                     }
                     //sqrt[n]
                     else if (Operator.StartsWith("sqrt[") && Operator.EndsWith("]"))
                     {
                         double baseValue = double.Parse(Operator[5..^1], CultureInfo.InvariantCulture); // Extract the number from "sqrt[...]"
-                        Calculated = System.Math.Round(System.Math.Pow(a, 1.0 / baseValue), Decimals);
-                        CalculationSteps.Add(($"sqrt[{baseValue}]({a})", Calculated.ToString()));
-                        ExplanationSteps.Add($"Roden til {baseValue} udregnes");
+                        Value = System.Math.Round(System.Math.Pow(a, 1.0 / baseValue), decimals);
+                        Step[0] = $"(sqrt[{baseValue}]({a}))";
+                        Step[1] = $"sqrt[{baseValue}]({a})";
+                        Text = $"Roden til {baseValue} udregnes";
                     }
                 }
                 else if (Operator.Contains("log"))
@@ -72,17 +106,19 @@ public class InfoClass
                     //log
                     if (Operator == "log")
                     {
-                        Calculated = System.Math.Round(System.Math.Log10(a), Decimals);
-                        CalculationSteps.Add(($"log({a})", Calculated.ToString()));
-                        ExplanationSteps.Add($"Log udregnes");
+                        Value = System.Math.Round(System.Math.Log10(a), decimals);
+                        Step[0] = $"(log({a}))";
+                        Step[1] = $"log({a})";
+                        Text = $"Log udregnes";
                     }
                     //log[n]
                     else if (Operator.StartsWith("log_(") && Operator.EndsWith(")"))
                     {
                         double baseValue = double.Parse(Operator[5..^1], CultureInfo.InvariantCulture); // Extract the number from "log[...]"
-                        Calculated = System.Math.Round(System.Math.Log(a, baseValue), Decimals);
-                        CalculationSteps.Add(($"log_({baseValue})({a})", Calculated.ToString()));
-                        ExplanationSteps.Add($"Log med basen {baseValue} udregnes");
+                        Value = System.Math.Round(System.Math.Log(a, baseValue), decimals);
+                        Step[0] = $"(log_({baseValue})({a}))";
+                        Step[1] = $"log_({baseValue})({a})";
+                        Text = $"Log med basen {baseValue} udregnes";
                     }
                 }
                 else if (Operator.Contains("sin") || Operator.Contains("cos") || Operator.Contains("tan"))
@@ -92,25 +128,24 @@ public class InfoClass
                         //sin
                         if (Operator == "sin")
                         {
-                            ConvertValue = a;
+                            Value = a;
                             if (Settings.TryGetValue("Radians", out (int?, bool?) value) && value.Item2 == false)
-                                ConvertValue = ConvertValue / (180 / System.Math.PI);
-                            ConvertValue = System.Math.Sin(ConvertValue);
-                            Calculated = System.Math.Round(ConvertValue, Decimals);
-                            CalculationSteps.Add(($"sin({a})", Calculated.ToString()));
-                            ExplanationSteps.Add($"Sinus udregnes");
+                                Value /= 180 / System.Math.PI;
+                            Value = System.Math.Round(System.Math.Sin(Value), decimals);
+                            Step[0] = $"(sin({a}))";
+                            Step[1] = $"sin({a})";
+                            Text = $"Sinus udregnes";
                         }
                         //sin^(-1)
                         else if (Operator == "sin^(-1)")
                         {
-                            Console.WriteLine(Settings.TryGetValue("Radians", out (int?, bool?) f) && f.Item2 == false);
-                            ConvertValue = a;
+                            Value = a;
                             if (Settings.TryGetValue("Radians", out (int?, bool?) value) && value.Item2 == false)
-                                ConvertValue = ConvertValue / (180 / System.Math.PI);
-                            ConvertValue = System.Math.Asin(ConvertValue);
-                            Calculated = System.Math.Round(ConvertValue, Decimals);
-                            CalculationSteps.Add(($"sin^(-1)({a})", Calculated.ToString()));
-                            ExplanationSteps.Add($"Sinus udregnes");
+                                Value /= 180 / System.Math.PI;
+                            Value = System.Math.Round(System.Math.Asin(Value), decimals);
+                            Step[0] = $"(sin^(-1)({a}))";
+                            Step[1] = $"sin^(-1)({a})";
+                            Text = $"Sinus udregnes";
                         }
                     }
                     else if (Operator.Contains("cos"))
@@ -118,24 +153,24 @@ public class InfoClass
                         //cos
                         if (Operator == "cos")
                         {
-                            ConvertValue = a;
+                            Value = a;
                             if (Settings.TryGetValue("Radians", out (int?, bool?) value) && value.Item2 == false)
-                                ConvertValue = ConvertValue / (180 / System.Math.PI);
-                            ConvertValue = System.Math.Cos(ConvertValue);
-                            Calculated = System.Math.Round(ConvertValue, Decimals);
-                            CalculationSteps.Add(($"cos({a})", Calculated.ToString()));
-                            ExplanationSteps.Add($"Cosinus udregnes");
+                                Value /= 180 / System.Math.PI;
+                            Value = System.Math.Round(System.Math.Cos(Value), decimals);
+                            Step[0] = $"(cos({a}))";
+                            Step[1] = $"cos({a})";
+                            Text = $"Cosinus udregnes";
                         }
                         //cos^(-1)
                         else if (Operator == "cos^(-1)")
                         {
-                            ConvertValue = a;
+                            Value = a;
                             if (Settings.TryGetValue("Radians", out (int?, bool?) value) && value.Item2 == false)
-                                ConvertValue = ConvertValue / (180 / System.Math.PI);
-                            ConvertValue = System.Math.Acos(ConvertValue);
-                            Calculated = System.Math.Round(ConvertValue, Decimals);
-                            CalculationSteps.Add(($"cos^(-1)({a})", Calculated.ToString()));
-                            ExplanationSteps.Add($"Cosinus udregnes");
+                                Value /= 180 / System.Math.PI;
+                            Value = System.Math.Round(System.Math.Acos(Value), decimals);
+                            Step[0] = $"(cos^(-1)({a}))";
+                            Step[1] = $"cos^(-1)({a})";
+                            Text = $"Cosinus udregnes";
                         }
                     }
                     else if (Operator.Contains("tan"))
@@ -143,24 +178,24 @@ public class InfoClass
                         //tan
                         if (Operator == "tan")
                         {
-                            ConvertValue = a;
+                            Value = a;
                             if (Settings.TryGetValue("Radians", out (int?, bool?) value) && value.Item2 == false)
-                                ConvertValue = ConvertValue / (180 / System.Math.PI);
-                            ConvertValue = System.Math.Tan(ConvertValue);
-                            Calculated = System.Math.Round(ConvertValue, Decimals);
-                            CalculationSteps.Add(($"tan^(-1)({a})", Calculated.ToString()));
-                            ExplanationSteps.Add($"Tangens udregnes");
+                                Value /= 180 / System.Math.PI;
+                            Value = System.Math.Round(System.Math.Tan(Value), decimals);
+                            Step[0] = $"(tan^(-1)({a}))";
+                            Step[1] = $"tan^(-1)({a})";
+                            Text = $"Tangens udregnes";
                         }
                         //tan^(-1)
                         else if (Operator == "tan^(-1)")
                         {
-                            ConvertValue = a;
+                            Value = a;
                             if (Settings.TryGetValue("Radians", out (int?, bool?) value) && value.Item2 == false)
-                                ConvertValue = ConvertValue / (180 / System.Math.PI);
-                            ConvertValue = System.Math.Atan(ConvertValue);
-                            Calculated = System.Math.Round(ConvertValue, Decimals);
-                            CalculationSteps.Add(($"tan^(-1)({a})", Calculated.ToString()));
-                            ExplanationSteps.Add($"Tangens udregnes");
+                                Value /= 180 / System.Math.PI;
+                            Value = System.Math.Round(System.Math.Atan(Value), decimals);
+                            Step[0] = $"(tan^(-1)({a}))";
+                            Step[1] = $"tan^(-1)({a})";
+                            Text = $"Tangens udregnes";
                         }
                     }
                 }
@@ -168,16 +203,27 @@ public class InfoClass
                     throw new ArgumentException("Invalid operator.");
                 break;
         };
-        return Calculated;
+        foreach (string calc in Step.Where(x => !string.IsNullOrEmpty(x)))
+        {
+            if (CalcSteps[^1].Contains(calc))
+            {
+                CalcSteps.Add(CalcSteps[^1].Replace(calc, Value.ToString()));
+                TextSteps.Add(Text);
+                break;
+            }
+        }
+        //Change the first one formatting, without disturbing the rest
+        if (CalcSteps.Count > 1)
+            CalcSteps[^2] = AfterCalculationFormatting(CalcSteps[^2]);
+        return Value;
     }
     public string PreCalculationFormatting(string input)
     {
         Regex Regex;
         List<(int, int)> MatchedParenthesis;
         int where;
-        int LeftParenthesis;
-        int RightParenthesis;
-        string searchField;
+        int LeftParenthesis = 0;
+        int RightParenthesis = 0;
         Match match;
         MatchCollection matchCollection;
         input = input.Replace('.', ',');
@@ -200,6 +246,31 @@ public class InfoClass
             RightParenthesis = where + match.Value[..^1].Length + 1;
             input = input.Insert(where, "(");
             input = input.Insert(RightParenthesis, ")");
+        }
+
+        //Parentes rundt om efter ^ hvis calculable inside
+        Regex = new(@"(?<!\))\)\^");
+        MatchCollection matchCollection1 = Regex.Matches(input);
+        int count = 0;
+        while ((match = Regex.Match(input)).Success && matchCollection1.Count > count)
+        {
+            RightParenthesis = match.Index;
+            MatchedParenthesis = new ParenthesisMatcher(input).MatchedParenthesis;
+            foreach ((int, int) parMatch in MatchedParenthesis)
+                if (parMatch.Item2 == RightParenthesis)
+                    LeftParenthesis = parMatch.Item1 + 1;
+            string checkThis = input.Substring(LeftParenthesis, RightParenthesis - LeftParenthesis);
+            matchCollection = new Regex(@"(-?\d+(\,\d+)?)").Matches(checkThis);
+            foreach ((string, bool, int) opMatch in GetOperators)
+            {
+                if (checkThis.Contains(opMatch.Item1) && matchCollection.Count > 1)
+                {
+                    input = input.Insert(LeftParenthesis, "(");
+                    input = input.Insert(RightParenthesis + 1, ")");
+                    break;
+                }
+            }
+            count++;
         }
 
         //Insert Parenthesis rundt om sqrt, så vi sikrer os at den bliver udregnet før den bliver lagt sammen med andet, til venstre for sqrt
@@ -244,33 +315,9 @@ public class InfoClass
             }
         }
 
-        //Find ")^" og tjek om der er noget der kan udregnes derinde
-        Regex = new(@"\)\^");
-        matchCollection = Regex.Matches(input);
-        foreach (Match item in matchCollection.Cast<Match>())
-        {
-            where = item.Index;
-            LeftParenthesis = 0;
-            RightParenthesis = where;
-            MatchedParenthesis = new ParenthesisMatcher(input).MatchedParenthesis;
-            foreach ((int, int) item2 in MatchedParenthesis)
-                if (item2.Item2 == RightParenthesis)
-                {
-                    LeftParenthesis = item2.Item1;
-                    break;
-                }
-            searchField = input.Substring(LeftParenthesis, RightParenthesis - 1);
-            foreach ((string, bool, int) opera in GetOperators)
-                if (searchField.Contains(opera.Item1) && new Regex(@"(\d+(\,\d+)?)").Matches(searchField).Count > 1)
-                {
-                    input = input.Insert(LeftParenthesis, "(").Insert(RightParenthesis + 1, ")");
-                    break;
-                }
-        }
-
         return input;
     }
-    public string AfterCalculationFormatting(string input)
+    private string AfterCalculationFormatting(string input)
     {
         Regex Regex;
         List<(int, int)> ParenthesisMatches;
@@ -291,9 +338,24 @@ public class InfoClass
             input = input.Insert(RightParenthesis, ")");
         }
 
-        //Remove UnNeededParenthesis
-        Regex = new(@"\(\(");
+        //Remove '('sqrt(...)')'
+        Regex = new(@"\(\bsqrt");
         while ((match = Regex.Match(input)).Success)
+        {
+            LeftParenthesis = match.Index;
+            ParenthesisMatches = new ParenthesisMatcher(input).MatchedParenthesis;
+            foreach ((int left, int right) parMatch in ParenthesisMatches)
+                if (LeftParenthesis == parMatch.left)
+                    RightParenthesis = parMatch.right;
+            input = input.Remove(LeftParenthesis, 1);
+            input = input.Remove(RightParenthesis - 1, 1);
+        }
+
+        //Remove UnNeededParenthesis
+        Regex = new(@"(\(\()");
+        MatchCollection matchCollection = Regex.Matches(input);
+        int count = 0;
+        while ((match = Regex.Match(input)).Success && count < matchCollection.Count)
         {
             LeftParenthesis = match.Index;
             LeftParenthesis2 = match.Index + 1;
@@ -305,11 +367,32 @@ public class InfoClass
                 if (LeftParenthesis2 == parMatch.Item1)
                     RightParenthesis2 = parMatch.Item2;
             }
-            if ((RightParenthesis - 1) == RightParenthesis2)
+            if ((LeftParenthesis + 1) == LeftParenthesis2 && (RightParenthesis - 1) == RightParenthesis2)
             {
-                input = input.Remove(LeftParenthesis2, 1);
-                input = input.Remove(RightParenthesis2 - 1, 1);
+                input = input.Remove(LeftParenthesis, 1);
+                input = input.Remove(RightParenthesis - 1, 1);
             }
+            count++;
+        }
+
+        //Parentes rundt om division venstre side
+        Regex = new(@"(-?\d+(\,\d+)?)/");
+        matchCollection = Regex.Matches(input);
+        foreach (Match matcha in matchCollection.Cast<Match>())
+        {
+            int where = matcha.Index;
+            string number = matcha.Value[1..];
+            input = input.Insert(where + number.Length, ")").Insert(where, "(");
+        }
+
+        //Parentes rundt om division højre side
+        Regex = new(@"/(-?\d+(\,\d+)?)");
+        matchCollection = Regex.Matches(input);
+        foreach (Match matcha in matchCollection.Cast<Match>())
+        {
+            int where = matcha.Index;
+            string number = matcha.Value[1..];
+            input = input.Insert(where + number.Length + 1, ")").Insert(where + 1, "(");
         }
 
         return input;
