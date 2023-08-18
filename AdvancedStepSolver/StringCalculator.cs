@@ -6,8 +6,8 @@ namespace AdvancedStepSolver;
 public class StringCalculator
 {
     private readonly InfoClass infoClass = new();
-    public double Result;
-    public string Expression = "";
+    public decimal? Result;
+    public string Expression;
     public List<string> CalcSteps = new();
     public List<string> TextSteps = new();
     private readonly int Decimals;
@@ -15,11 +15,49 @@ public class StringCalculator
     {
         Expression = infoClass.PreCalculationFormatting(ReplaceConstants(expression)).Replace(" ", "");
         infoClass.Settings = settings;
-        Decimals = decimals;
-        CalcSteps.Add(Expression);
-        Result = CalculateExpression(Expression);
+        if (settings.TryGetValue("ShowEqualSign", out (int?, bool?) value) && value.Item2 is true)
+        {
+            Decimals = 28;
+            CalcSteps.Add(Expression);
+            decimal? result0 = CalculateExpression(Expression);
+            CalcSteps.Clear();
+            TextSteps.Clear();
+            Decimals = decimals;
+            CalcSteps.Add(Expression);
+            Result = CalculateExpression(Expression);
+            decimal result;
+            if (result0 != null)
+            {
+                result = result0 ?? 0;
+                if (!decimal.IsInteger(result) && double.IsNormal(double.Parse(result.ToString())))
+                {
+                    int resultDecimalLength = result.ToString().Split(',')[1].Length;
+                    int resultStepLength = CalcSteps[^1].Split(',')[1].Length;
+                    if (resultStepLength < resultDecimalLength)
+                        CalcSteps[^1] = "≈" + CalcSteps[^1];
+                    else
+                        CalcSteps[^1] = "=" + CalcSteps[^1];
+                }
+                else
+                    CalcSteps[^1] = "=" + CalcSteps[^1];
+            }
+            else
+            {
+                CalcSteps.RemoveRange(1, CalcSteps.Count - 1);
+                TextSteps.Clear();
+                CalcSteps.Add("Result = NaN");
+            }
+            
+        }
+        else
+        {
+            Decimals = decimals;
+            CalcSteps.Add(Expression);
+            Result = CalculateExpression(Expression);
+        }
+        
     }
-    private double CalculateExpression(string input)
+    private decimal? CalculateExpression(string input)
     {
         input = input.Replace(',', '.');
         Queue<string> postfixQueue = ConvertToPostfix(input);
@@ -99,22 +137,22 @@ public class StringCalculator
         return outputQueue;
         #endregion
     }
-    private double EvaluatePostfix(Queue<string> postfixQueue)
+    private decimal? EvaluatePostfix(Queue<string> postfixQueue)
     {
-        Stack<double> valueStack = new();
+        Stack<decimal?> valueStack = new();
         while (postfixQueue.Count > 0)
         {
             string Operator = postfixQueue.Dequeue().Replace(',', '.');
             (bool, bool) isOperator = IsOperator(Operator);
-            if (double.TryParse(Operator, NumberStyles.Any, CultureInfo.InvariantCulture, out double number))
+            if (decimal.TryParse(Operator, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal number))
                 valueStack.Push(number);
             else if (isOperator.Item1)
             {
                 if (valueStack.Count < 1)
                     throw new ArgumentException("Invalid expression.");
 
-                double a = valueStack.Pop();
-                double b = 0;
+                decimal? a = valueStack.Pop();
+                decimal? b = 0;
                 if (!isOperator.Item2)
                     b = valueStack.Pop();
                 #region Free to edit, but only for adding operators!

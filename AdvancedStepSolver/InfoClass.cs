@@ -1,26 +1,31 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
-using System.Text;
+﻿using System.Globalization;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace AdvancedStepSolver;
 
 public class InfoClass
 {
-    public double Calculator(string Operator, double a, double b, int decimals, List<string> CalcSteps, List<string> TextSteps)
+    public decimal? Calculator(string Operator, decimal? aa, decimal? bb, int decimals, List<string> CalcSteps, List<string> TextSteps)
     {
         //Return values
-        double Value = 0;
+        decimal? Value = 0;
         string[] Step = { "", "", "", "", "", "", "", "" };
         string Text = "";
-
+        decimal a = 0;
+        decimal b = 0;
         switch (Operator)
         {
             case "^":
-                Value = System.Math.Round(System.Math.Pow(b, a), decimals);
+                if (aa == null || bb == null)
+                    return null;
+                else
+                {
+                    a = aa ?? 0;
+                    b = bb ?? 0;
+                }
+                if (decimals > 15)
+                    decimals = 15;
+                Value = Dou2Dec(Math.Round(Math.Pow((double)b, (double)a), decimals));
                 Step[0] = $"(({b})^({a}))";
                 Step[1] = $"(({b})^{a})";
                 Step[2] = $"({b}^({a}))";
@@ -32,7 +37,14 @@ public class InfoClass
                 Text = $"Exponenten udregnes";
                 break;
             case "*":
-                Value = System.Math.Round(b * a, decimals);
+                if (aa == null || bb == null)
+                    return null;
+                else
+                {
+                    a = aa ?? 0;
+                    b = bb ?? 0;
+                }
+                Value = Math.Round(b * a, decimals);
                 Step[0] = $"(({b})*({a}))";
                 Step[1] = $"(({b})*{a})";
                 Step[2] = $"({b}*({a}))";
@@ -44,7 +56,14 @@ public class InfoClass
                 Text = $"Der ganges";
                 break;
             case "/":
-                Value = System.Math.Round(b / a, decimals);
+                if (aa == null || bb == null)
+                    return null;
+                else
+                {
+                    a = aa ?? 0;
+                    b = bb ?? 0;
+                }
+                Value = Math.Round(b / a, decimals);
                 Step[0] = $"(({b})/({a}))";
                 Step[1] = $"(({b})/{a})";
                 Step[2] = $"({b}/({a}))";
@@ -56,7 +75,14 @@ public class InfoClass
                 Text = $"Der divideres";
                 break;
             case "+":
-                Value = System.Math.Round(b + a, decimals);
+                if (aa == null || bb == null)
+                    return null;
+                else
+                {
+                    a = aa ?? 0;
+                    b = bb ?? 0;
+                }
+                Value = Math.Round(b + a, decimals);
                 Step[0] = $"(({b})+({a}))";
                 Step[1] = $"(({b})+{a})";
                 Step[2] = $"({b}+({a}))";
@@ -68,7 +94,14 @@ public class InfoClass
                 Text = $"Der plusses";
                 break;
             case "-":
-                Value = System.Math.Round(b - a, decimals);
+                if (aa == null || bb == null)
+                    return null;
+                else
+                {
+                    a = aa ?? 0;
+                    b = bb ?? 0;
+                }
+                Value = Math.Round(b - a, decimals);
                 Step[0] = $"(({b})-({a}))";
                 Step[1] = $"(({b})-{a})";
                 Step[2] = $"({b}-({a}))";
@@ -83,10 +116,16 @@ public class InfoClass
             default:
                 if (Operator.Contains("sqrt"))
                 {
+                    if (aa == null)
+                        return null;
+                    else
+                        a = aa ?? 0;
+                    if (decimals > 15)
+                        decimals = 15;
                     //sqrt
                     if (Operator == "sqrt")
                     {
-                        Value = System.Math.Round(System.Math.Sqrt(a), decimals);
+                        Value = Dou2Dec(Math.Round(Math.Sqrt((double)a), decimals));
                         Step[0] = $"(sqrt({a}))";
                         Step[1] = $"sqrt({a})";
                         Text = $"Kvadratroden udregnes";
@@ -94,8 +133,8 @@ public class InfoClass
                     //sqrt[n]
                     else if (Operator.StartsWith("sqrt[") && Operator.EndsWith("]"))
                     {
-                        double baseValue = double.Parse(Operator[5..^1], CultureInfo.InvariantCulture); // Extract the number from "sqrt[...]"
-                        Value = System.Math.Round(System.Math.Pow(a, 1.0 / baseValue), decimals);
+                        decimal baseValue = decimal.Parse(Operator[5..^1], CultureInfo.InvariantCulture); // Extract the number from "sqrt[...]"
+                        Value = Dou2Dec(Math.Round(Math.Pow((double)a, 1.0 / (double)baseValue), decimals));
                         Step[0] = $"(sqrt[{baseValue}]({a}))";
                         Step[1] = $"sqrt[{baseValue}]({a})";
                         Text = $"Roden til {baseValue} udregnes";
@@ -103,10 +142,16 @@ public class InfoClass
                 }
                 else if (Operator.Contains("log"))
                 {
+                    if (aa == null)
+                        return null;
+                    else
+                        a = aa ?? 0;
+                    if (decimals > 15)
+                        decimals = 15;
                     //log
                     if (Operator == "log")
                     {
-                        Value = System.Math.Round(System.Math.Log10(a), decimals);
+                        Value = Dou2Dec(Math.Round(Math.Log10((double)a), decimals));
                         Step[0] = $"(log({a}))";
                         Step[1] = $"log({a})";
                         Text = $"Log udregnes";
@@ -114,8 +159,8 @@ public class InfoClass
                     //log[n]
                     else if (Operator.StartsWith("log_(") && Operator.EndsWith(")"))
                     {
-                        double baseValue = double.Parse(Operator[5..^1], CultureInfo.InvariantCulture); // Extract the number from "log[...]"
-                        Value = System.Math.Round(System.Math.Log(a, baseValue), decimals);
+                        decimal baseValue = decimal.Parse(Operator[5..^1], CultureInfo.InvariantCulture); // Extract the number from "log[...]"
+                        Value = Dou2Dec(Math.Round(Math.Log((double)a, (double)baseValue), decimals));
                         Step[0] = $"(log_({baseValue})({a}))";
                         Step[1] = $"log_({baseValue})({a})";
                         Text = $"Log med basen {baseValue} udregnes";
@@ -125,13 +170,19 @@ public class InfoClass
                 {
                     if (Operator.Contains("sin"))
                     {
+                        if (aa == null)
+                            return null;
+                        else
+                            a = aa ?? 0;
+                        if (decimals > 15)
+                            decimals = 15;
                         //sin
                         if (Operator == "sin")
                         {
                             Value = a;
                             if (Settings.TryGetValue("Radians", out (int?, bool?) value) && value.Item2 == false)
-                                Value /= 180 / System.Math.PI;
-                            Value = System.Math.Round(System.Math.Sin(Value), decimals);
+                                Value = decimal.Parse(((double)Value / 180 / Math.PI).ToString());
+                            Value = Dou2Dec(Math.Round(Math.Sin((double)Value), decimals));
                             Step[0] = $"(sin({a}))";
                             Step[1] = $"sin({a})";
                             Text = $"Sinus udregnes";
@@ -141,8 +192,8 @@ public class InfoClass
                         {
                             Value = a;
                             if (Settings.TryGetValue("Radians", out (int?, bool?) value) && value.Item2 == false)
-                                Value /= 180 / System.Math.PI;
-                            Value = System.Math.Round(System.Math.Asin(Value), decimals);
+                                Value = decimal.Parse(((double)Value / 180 / Math.PI).ToString());
+                            Value = Dou2Dec(Math.Round(Math.Asin((double)Value), decimals));
                             Step[0] = $"(sin^(-1)({a}))";
                             Step[1] = $"sin^(-1)({a})";
                             Text = $"Sinus udregnes";
@@ -150,13 +201,19 @@ public class InfoClass
                     }
                     else if (Operator.Contains("cos"))
                     {
+                        if (aa == null)
+                            return null;
+                        else
+                            a = aa ?? 0;
+                        if (decimals > 15)
+                            decimals = 15;
                         //cos
                         if (Operator == "cos")
                         {
                             Value = a;
                             if (Settings.TryGetValue("Radians", out (int?, bool?) value) && value.Item2 == false)
-                                Value /= 180 / System.Math.PI;
-                            Value = System.Math.Round(System.Math.Cos(Value), decimals);
+                                Value = decimal.Parse(((double)Value / 180 / Math.PI).ToString());
+                            Value = Dou2Dec(Math.Round(Math.Cos((double)Value), decimals));
                             Step[0] = $"(cos({a}))";
                             Step[1] = $"cos({a})";
                             Text = $"Cosinus udregnes";
@@ -166,8 +223,8 @@ public class InfoClass
                         {
                             Value = a;
                             if (Settings.TryGetValue("Radians", out (int?, bool?) value) && value.Item2 == false)
-                                Value /= 180 / System.Math.PI;
-                            Value = System.Math.Round(System.Math.Acos(Value), decimals);
+                                Value = decimal.Parse(((double)Value / 180 / Math.PI).ToString());
+                            Value = Dou2Dec(Math.Round(Math.Acos((double)Value), decimals));
                             Step[0] = $"(cos^(-1)({a}))";
                             Step[1] = $"cos^(-1)({a})";
                             Text = $"Cosinus udregnes";
@@ -175,13 +232,19 @@ public class InfoClass
                     }
                     else if (Operator.Contains("tan"))
                     {
+                        if (aa == null)
+                            return null;
+                        else
+                            a = aa ?? 0;
+                        if (decimals > 15)
+                            decimals = 15;
                         //tan
                         if (Operator == "tan")
                         {
                             Value = a;
                             if (Settings.TryGetValue("Radians", out (int?, bool?) value) && value.Item2 == false)
-                                Value /= 180 / System.Math.PI;
-                            Value = System.Math.Round(System.Math.Tan(Value), decimals);
+                                Value = decimal.Parse(((double)Value / 180 / Math.PI).ToString());
+                            Value = Dou2Dec(Math.Round(Math.Tan((double)Value), decimals));
                             Step[0] = $"(tan^(-1)({a}))";
                             Step[1] = $"tan^(-1)({a})";
                             Text = $"Tangens udregnes";
@@ -191,8 +254,8 @@ public class InfoClass
                         {
                             Value = a;
                             if (Settings.TryGetValue("Radians", out (int?, bool?) value) && value.Item2 == false)
-                                Value /= 180 / System.Math.PI;
-                            Value = System.Math.Round(System.Math.Atan(Value), decimals);
+                                Value = decimal.Parse(((double)Value / 180 / Math.PI).ToString());
+                            Value = Dou2Dec(Math.Round(Math.Atan((double)Value), decimals));
                             Step[0] = $"(tan^(-1)({a}))";
                             Step[1] = $"tan^(-1)({a})";
                             Text = $"Tangens udregnes";
@@ -217,13 +280,20 @@ public class InfoClass
             CalcSteps[^2] = AfterCalculationFormatting(CalcSteps[^2]);
         return Value;
     }
+    private decimal? Dou2Dec(double check)
+    {
+        if (double.IsNormal(check))
+            return decimal.Parse(check.ToString());
+        else
+            return null;
+    }
     public string PreCalculationFormatting(string input)
     {
         Regex Regex;
         List<(int, int)> MatchedParenthesis;
         int where;
         int LeftParenthesis = 0;
-        int RightParenthesis = 0;
+        int RightParenthesis;
         Match match;
         MatchCollection matchCollection;
         input = input.Replace('.', ',');
@@ -250,8 +320,10 @@ public class InfoClass
 
         //Parentes rundt om efter ^ hvis calculable inside
         Regex = new(@"(?<!\))\)\^");
+        Regex numbers = new(@"(-?\d+(\,\d+)?)");
         MatchCollection matchCollection1 = Regex.Matches(input);
         int count = 0;
+        string checkThis;
         while ((match = Regex.Match(input)).Success && matchCollection1.Count > count)
         {
             RightParenthesis = match.Index;
@@ -259,8 +331,8 @@ public class InfoClass
             foreach ((int, int) parMatch in MatchedParenthesis)
                 if (parMatch.Item2 == RightParenthesis)
                     LeftParenthesis = parMatch.Item1 + 1;
-            string checkThis = input.Substring(LeftParenthesis, RightParenthesis - LeftParenthesis);
-            matchCollection = new Regex(@"(-?\d+(\,\d+)?)").Matches(checkThis);
+            checkThis = input[LeftParenthesis..RightParenthesis];
+            matchCollection = numbers.Matches(checkThis);
             foreach ((string, bool, int) opMatch in GetOperators)
             {
                 if (checkThis.Contains(opMatch.Item1) && matchCollection.Count > 1)
@@ -274,7 +346,7 @@ public class InfoClass
         }
 
         //Insert Parenthesis rundt om sqrt, så vi sikrer os at den bliver udregnet før den bliver lagt sammen med andet, til venstre for sqrt
-        Regex = new(@"(?<!\()((\bsqrt(\[-?\d+(\,\d+)?\])?)|(\bsin(\^\(-1\))?)|(\bcos(\^\(-1\))?)|(\btan(\^\(-1\))?))");
+        Regex = new(@"(?<!\()((\bsqrt(\[-?\d+(\,\d+)?\])?)|(\bsin(\^\(-1\))?)|(\\bcos(\^\(-1\))?)|(\btan(\^\(-1\))?))");
         while ((match = Regex.Match(input)).Success)
         {
             where = match.Index;
@@ -317,7 +389,7 @@ public class InfoClass
 
         return input;
     }
-    private string AfterCalculationFormatting(string input)
+    private static string AfterCalculationFormatting(string input)
     {
         Regex Regex;
         List<(int, int)> ParenthesisMatches;
@@ -339,7 +411,7 @@ public class InfoClass
         }
 
         //Remove '('sqrt(...)')'
-        Regex = new(@"\(\bsqrt");
+        Regex = new(@"(\(\bsqrt)|(\(\bsin)");
         while ((match = Regex.Match(input)).Success)
         {
             LeftParenthesis = match.Index;
@@ -352,10 +424,8 @@ public class InfoClass
         }
 
         //Remove UnNeededParenthesis
-        Regex = new(@"(\(\()");
-        MatchCollection matchCollection = Regex.Matches(input);
-        int count = 0;
-        while ((match = Regex.Match(input)).Success && count < matchCollection.Count)
+        Regex = new(@"(?<!§)\(\(");
+        while ((match = Regex.Match(input)).Success)
         {
             LeftParenthesis = match.Index;
             LeftParenthesis2 = match.Index + 1;
@@ -364,20 +434,24 @@ public class InfoClass
             {
                 if (LeftParenthesis == parMatch.Item1)
                     RightParenthesis = parMatch.Item2;
-                if (LeftParenthesis2 == parMatch.Item1)
+                else if (LeftParenthesis2 == parMatch.Item1)
                     RightParenthesis2 = parMatch.Item2;
             }
-            if ((LeftParenthesis + 1) == LeftParenthesis2 && (RightParenthesis - 1) == RightParenthesis2)
+            if (LeftParenthesis + 1 == LeftParenthesis2 && RightParenthesis - 1 == RightParenthesis2)
             {
                 input = input.Remove(LeftParenthesis, 1);
                 input = input.Remove(RightParenthesis - 1, 1);
             }
-            count++;
+            else
+            {
+                input = input.Insert(LeftParenthesis, "§");
+            }
         }
+        input = input.Replace("§", "");
 
         //Parentes rundt om division venstre side
         Regex = new(@"(-?\d+(\,\d+)?)/");
-        matchCollection = Regex.Matches(input);
+        MatchCollection matchCollection = Regex.Matches(input);
         foreach (Match matcha in matchCollection.Cast<Match>())
         {
             int where = matcha.Index;

@@ -1,7 +1,4 @@
-﻿using System;
-using System.Text.RegularExpressions;
-using System.Threading.Channels;
-using static System.Net.Mime.MediaTypeNames;
+﻿using System.Text.RegularExpressions;
 
 namespace AdvancedStepSolver;
 
@@ -98,48 +95,22 @@ public class CustomExpression2LaTeX
             expression = ConvertCommands(expression, (new Regex(@"\btan(\^{-1})?\("), @"\tan"), true);
         #endregion \tan{}
 
+        #region Symbols
+        foreach ((string Symbol, string LaTeX_Symbol) in Symbols)
+            expression = expression.Replace(Symbol, $"{LaTeX_Symbol} ");
+        #endregion Symbols
         return expression;
     }
-    #region Specific LaTeX_Converters
-    private string SinCosTan(string expression, (Regex searchOpera, string replaceOpera) opera)
+    private readonly List<(string Symbol, string LaTeX_Symbol)> Symbols = new()
     {
-        int rightParenthesis = 0;
-        int leftParenthesis;
-        List<(int, int)> parenthesisMatches;
-        Regex regex;
-        Match match;
-        int index;
-
-        regex = opera.searchOpera;
-        while ((match = regex.Match(expression)).Success)
-        {
-            index = match.Index + match.Length;
-            parenthesisMatches = new ParenthesisMatcher(expression).MatchedParenthesis;
-            if (expression[index] == '^')
-                leftParenthesis = index + 5;
-            else
-                leftParenthesis = index;
-            foreach ((int, int) parMatch in parenthesisMatches)
-                if (leftParenthesis == parMatch.Item1)
-                {
-                    rightParenthesis = parMatch.Item2;
-                    break;
-                }
-            expression = expression.Insert(leftParenthesis, "{");
-            expression = expression.Insert(rightParenthesis + 2, "}");
-            expression = ReplaceAtIndex(expression, (match.Index, match.Length), opera.replaceOpera);
-            break;
-        }
-        return expression;
-    }
-    private string ConvertCommands(string expression, (Regex searchOpera, string replaceOpera) opera, bool keepParenthesis)
+        ("≈", @"\approx"),
+    };
+    private static string ConvertCommands(string expression, (Regex searchOpera, string replaceOpera) opera, bool keepParenthesis)
     {
         List<(int, int)> parenthesisMatches;
         int index;
         int rightParenthesis = 0;
         int leftParenthesis;
-        int rightParenthesis2 = 0;
-        int leftParenthesis2;
         int length;
 
         Match match;
@@ -147,7 +118,6 @@ public class CustomExpression2LaTeX
         {
             index = match.Index;
             length = match.Length;
-            leftParenthesis2 = match.Index - 1;
             leftParenthesis = index + length - 1;
             parenthesisMatches = new ParenthesisMatcher(expression).MatchedParenthesis;
 
@@ -155,29 +125,22 @@ public class CustomExpression2LaTeX
             {
                 if (parMatch.left == leftParenthesis)
                     rightParenthesis = parMatch.right;
-                if (parMatch.left == leftParenthesis2)
-                    rightParenthesis2 = parMatch.right;
             }
             if (keepParenthesis)
             {
                 expression = ReplaceAtIndex(expression, (leftParenthesis, 1), "{(");
                 expression = ReplaceAtIndex(expression, (rightParenthesis + 1, 1), ")}");
-                expression = expression.Remove(leftParenthesis2, 1);
-                expression = expression.Remove(rightParenthesis2 + 1, 1);
             }
             else
             {
                 expression = ReplaceAtIndex(expression, (leftParenthesis, 1), "{");
                 expression = ReplaceAtIndex(expression, (rightParenthesis, 1), "}");
-                expression = expression.Remove(leftParenthesis2, 1);
-                expression = expression.Remove(rightParenthesis2 - 1, 1);
             }
-            expression = ReplaceAtIndex(expression, (index-1, opera.replaceOpera[1..].Length), opera.replaceOpera);
+            expression = ReplaceAtIndex(expression, (index, opera.replaceOpera[1..].Length), opera.replaceOpera);
         }
         return expression;
     }
-    #endregion Specific LaTeX_Converters
-    private string ReplaceAtIndex(string text, (int index, int length) index, string item)
+    private static string ReplaceAtIndex(string text, (int index, int length) index, string item)
     {
         return text.Remove(index.index, index.length).Insert(index.index, item);
     }
