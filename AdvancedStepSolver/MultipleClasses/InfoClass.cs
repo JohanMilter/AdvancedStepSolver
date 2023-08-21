@@ -1,7 +1,7 @@
 ﻿using System.Globalization;
 using System.Text.RegularExpressions;
 
-namespace AdvancedStepSolver;
+namespace AdvancedStepSolver.MultipleClasses;
 
 public class InfoClass
 {

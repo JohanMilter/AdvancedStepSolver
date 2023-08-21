@@ -1,6 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 
-namespace AdvancedStepSolver;
+namespace AdvancedStepSolver.MultipleClasses;
 
 public class CustomExpression2LaTeX
 {

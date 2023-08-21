@@ -1,20 +1,39 @@
 ﻿using System.Globalization;
 using System.Text.RegularExpressions;
 
-namespace AdvancedStepSolver;
+namespace AdvancedStepSolver.MultipleClasses;
 
 public class StringCalculator
 {
-    private readonly InfoClass infoClass = new();
+    private readonly InfoClass infoClass;
     public decimal? Result;
     public string Expression;
+    public string OriginalExpression;
+    public string Variable = "";
     public List<string> CalcSteps = new();
     public List<string> TextSteps = new();
     private readonly int Decimals;
-    public StringCalculator(string expression, Dictionary<string, (int?, bool?)> settings, int decimals)
+    public StringCalculator(string expression, Dictionary<string, (int?, bool?)> settings, InfoClass InfoClass)
     {
+        infoClass = InfoClass;
+        OriginalExpression = expression;
+        if (expression.Contains('='))
+        {
+            string[] sides = expression.Split('=');
+            if (sides[0].Length < sides[1].Length)
+            {
+                Variable = sides[0];
+                expression = sides[1];
+            }
+            else
+            {
+                expression = sides[0];
+                Variable = sides[1];
+            }
+        }
         Expression = infoClass.PreCalculationFormatting(ReplaceConstants(expression)).Replace(" ", "");
         infoClass.Settings = settings;
+        settings.TryGetValue("#Decimals", out (int?, bool?) deciValue);
         if (settings.TryGetValue("ShowEqualSign", out (int?, bool?) value) && value.Item2 is true)
         {
             Decimals = 28;
@@ -22,7 +41,7 @@ public class StringCalculator
             decimal? result0 = CalculateExpression(Expression);
             CalcSteps.Clear();
             TextSteps.Clear();
-            Decimals = decimals;
+            Decimals = deciValue.Item1 ?? 3;
             CalcSteps.Add(Expression);
             Result = CalculateExpression(Expression);
             decimal result;
@@ -47,15 +66,18 @@ public class StringCalculator
                 TextSteps.Clear();
                 CalcSteps.Add("Result = NaN");
             }
-            
+
         }
         else
         {
-            Decimals = decimals;
+            Decimals = deciValue.Item1 ?? 3;
             CalcSteps.Add(Expression);
             Result = CalculateExpression(Expression);
         }
-        
+        if (OriginalExpression.Contains('='))
+            for (int i = 0; i < CalcSteps.Count; i++)
+                if (i + 1 != CalcSteps.Count)
+                    CalcSteps[i] = $"{Variable.Replace(" ", "")}={CalcSteps[i]}";
     }
     private decimal? CalculateExpression(string input)
     {

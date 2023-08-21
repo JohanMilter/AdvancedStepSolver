@@ -1,33 +1,46 @@
-﻿using AdvancedStepSolver;
+﻿using AdvancedStepSolver.NestedClass;
 using System.Diagnostics;
 
-Stopwatch sw = Stopwatch.StartNew();
-
-List<string> Calculate = new()
-{
-    "(-2 - sqrt((-3 -5)^2 - 4 * -62 * 4))/(2 * -675)",
-    "(-2 - sqrt(4))/(2 * -675)",
-    "sqrt[34](23434 + 34534) * sqrt(35.23 + 4.23)",
-    "sin^-1(20+23) * sin(25+42)",
-};
 Dictionary<string, (int?, bool?)> Settings = new()
 {
+    { "#Decimals", (28, null) },
+    { "LaTeX", (null, true) },
     { "ShowEqualSign", (null, true) },
     { "Radians", (null, true) },
 };
-
+List<string> Calculate = new()
+{
+    "S = B * (1 + r)",
+    "B = S/(1 + r)",
+    "r = S/B-1",
+};
+Dictionary<string, decimal?> VariableValues = new()
+{
+    { "B", 13m },
+    { "r", 0.4m },
+    { "S", 18.2m},
+};
+List<long> Counter = new();
+List<string> CalcSteps = new();
+List<string> TextSteps = new();
+Stopwatch stopwatch = new();
+NestedCalculator startCalculating = new();
 for (int i_1 = 0; i_1 < Calculate.Count; i_1++)
 {
-    Console.WriteLine($"Calculation {i_1+1}-------------------------------------------------------------------------");
-    StringCalculator calcs = new(Calculate[i_1], Settings, 15);
-    List<string> CalcSteps = calcs.CalcSteps;
-    List<string> TextSteps = calcs.TextSteps;
-    for (int i_2 = 0; i_2 < CalcSteps.Count; i_2++)
+    Console.WriteLine("-----------------------------------------");
+    stopwatch.Start();
+    startCalculating.CalculateFormula(Calculate[i_1], Settings, VariableValues);
+    CalcSteps = startCalculating.CalcSteps;
+    TextSteps = startCalculating.TextSteps;
+    for (int i = 0; i < CalcSteps.Count; i++)
     {
-        Console.WriteLine(new CustomExpression2LaTeX(CalcSteps[i_2]).LaTeX);
-        if (i_2 < TextSteps.Count)
-            Console.WriteLine(TextSteps[i_2]);
+        Console.WriteLine(CalcSteps[i]);
+        if (TextSteps.Count > i)
+            Console.WriteLine(TextSteps[i]);
     }
+    stopwatch.Stop();
+    Counter.Add(stopwatch.ElapsedMilliseconds);
 }
-sw.Stop();
-Console.WriteLine((float)sw.ElapsedMilliseconds / 1000 + " Seconds");
+foreach (var item in Counter)
+    Console.WriteLine(item);
+

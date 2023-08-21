@@ -1,5 +1,4 @@
-﻿
-namespace AdvancedStepSolver;
+﻿namespace AdvancedStepSolver.MultipleClasses;
 
 public class ParenthesisMatcher
 {
