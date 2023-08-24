@@ -10,16 +10,23 @@ Dictionary<string, (int?, bool?)> Settings = new()
 };
 List<string> Calculate = new()
 {
-    "S = B * (1 + r)",
-    "B = S/(1 + r)",
-    "r = S/B-1",
+    "A = b * ((1 + r)^n - 1)/r",
+    "b = (A * r)/((1 + r)^n - 1)",
+    "n = log[1 + r](1 + (A * r)/b)",
 };
 Dictionary<string, decimal?> VariableValues = new()
 {
-    { "B", 13m },
-    { "r", 0.4m },
-    { "S", 18.2m},
+    { "A", 1m },
+    { "b", -6m },
+    { "r", 3m },
+    { "n", -0.5m },
 };
+
+
+
+
+
+
 List<long> Counter = new();
 List<string> CalcSteps = new();
 List<string> TextSteps = new();

@@ -1,5 +1,4 @@
-﻿using System;
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace AdvancedStepSolver.NestedClass;
@@ -12,68 +11,107 @@ public class NestedCalculator
     public List<string> CalcSteps = new();
     public List<string> TextSteps = new();
     private int Decimals;
-    #region Main Calculator Engine
+
+    //Regex Patterns Readonly
+    //...
+    //...
+    //...
+
+    #region Main Calculator methods
     public void CalculateFormula(string formula, Dictionary<string, (int?, bool?)> settings, Dictionary<string, decimal?> variableValues)
     {
-        formula = InsertVarialbesInFormula(formula, variableValues, GetOperators);
-        CalculateExpression(formula, settings);
+
+        string? form = InsertVariablesInFormula(formula.Replace(" ", ""), variableValues, GetOperators);
+
+        //Tjek om der er et lighedstegn og om formula er null
+        if (formula.Contains('='))
+        {
+            bool left = false;
+            string[] sides = formula.Split('=');
+            foreach (KeyValuePair<string, decimal?> item in variableValues)
+                if (sides[0].Replace(" ", "") == item.Key.Replace(" ", ""))
+                {
+                    left = true;
+                    break;
+                }
+                else if (sides[1].Replace(" ", "") == item.Key.Replace(" ", ""))
+                {
+                    left = false;
+                    break;
+                }
+            if (form is not null)
+            {
+                sides = form.Split('=');
+                if (left)
+                {
+                    Variable = sides[0];
+                    form = sides[1];
+                }
+                else
+                {
+                    form = sides[0];
+                    Variable = sides[1];
+                }
+            }
+        }
+        CalculateExpression(form, settings);
     }
-    public void CalculateExpression(string expression, Dictionary<string, (int?, bool?)> settings)
+    public void CalculateExpression(string? expression, Dictionary<string, (int?, bool?)> settings)
     {
+        //Reset Values
         Decimals = 0;
         Result = null;
         Expression = "";
-        Variable = "";
         CalcSteps = new();
         TextSteps = new();
-        settings.TryGetValue("#Decimals", out (int?, bool?) decimals);
-        Decimals = decimals.Item1 ?? 3;
-        if (expression.Contains('='))
+        string equalSign;
+        if (!string.IsNullOrEmpty(expression))
         {
-            string[] sides = expression.Split('=');
-            if (sides[0].Length < sides[1].Length)
-            {
-                Variable = sides[0];
-                expression = sides[1];
-            }
-            else
-            {
-                expression = sides[0];
-                Variable = sides[1];
-            }
-        }
-        Expression = PreCalculationFormatting(ReplaceConstants(expression)).Replace(" ", "");
-        settings.TryGetValue("#Decimals", out (int?, bool?) deciValue);
-        if (settings.TryGetValue("ShowEqualSign", out (int?, bool?) value) && value.Item2 is true)
-        {
-            Decimals = 28;
-            CalcSteps.Add(Expression);
-            decimal? result0 = Calculate(Expression);
-            CalcSteps.Clear();
-            TextSteps.Clear();
-            Decimals = deciValue.Item1 ?? 3;
-            CalcSteps.Add(Expression);
-            Result = Calculate(Expression);
-            decimal result;
-            if (result0 != null)
-            {
-                result = result0 ?? 0;
-                if (!decimal.IsInteger(result) && double.IsNormal(double.Parse(result.ToString())))
-                {
-                    int resultDecimalLength = result.ToString().Split(',')[1].Length;
-                    int resultStepLength = CalcSteps[^1].Split(',')[1].Length;
-                    bool checkIfNumber1 = decimal.TryParse(Variable, out decimal variableValue);
-                    bool checkIfNumber2 = decimal.TryParse(CalcSteps[^1], out decimal formulaValue);
+            //Instanciate Decimals
+            settings.TryGetValue("#Decimals", out (int?, bool?) decimals);
+            Decimals = decimals.Item1 ?? 3;
 
-                    if (checkIfNumber1 && checkIfNumber2 && Math.Round(variableValue, Decimals) != Math.Round(formulaValue, Decimals))
-                        CalcSteps[^1] = "≠" + CalcSteps[^1];
-                    else if (resultStepLength < resultDecimalLength)
-                        CalcSteps[^1] = "≈" + CalcSteps[^1];
+            //Format Expression før udregning
+            Expression = PreCalculationFormatting(ReplaceConstants(expression)).Replace(" ", "");
+
+            CalcSteps.Add(Expression);
+            decimal? fullResult = Calculate(Expression, true);
+
+            //Tjek om der skete en fejl (NaN)
+            if (fullResult != null)
+            {
+                //Tjek om der skal lave et dynamisk lighedstegn (lighedstegnet ændree sig på baggrund af hvad resultatet er og mængden af decimaler man gern vil have).
+                if (settings.TryGetValue("ShowEqualSign", out (int?, bool?) value) && value.Item2 is true)
+                {
+                    Result = decimal.Parse(CalculationDoneFormatting(fullResult.ToString() ?? ""));
+                    decimal result = fullResult ?? 0;
+                    //Dynamic lighedstegn tjekning og instanciating
+                    if (double.IsNormal(double.Parse(result.ToString())))
+                    {
+                        bool checkIfNumber1 = decimal.TryParse(Variable, out decimal variableValue);
+                        bool checkIfNumber2 = decimal.TryParse($"{Result}", out decimal formulaValue);
+                        if (checkIfNumber1 && checkIfNumber2 && System.Math.Round(variableValue, Decimals) != System.Math.Round(formulaValue, Decimals))
+                            equalSign = "≠";
+                        else if ($"{Result}".Contains(',') && $"{result}".Contains(','))
+                        {
+                            int resultDecimalLength = result.ToString().Split(',')[1].Length;
+                            int resultStepDecimalLength = $"{Result}".Split(',')[1].Length;
+
+                            if (resultStepDecimalLength < resultDecimalLength)
+                                equalSign = "≈";
+                            else
+                                equalSign = "=";
+                        }
+                        else
+                            equalSign = "=";
+                    }
                     else
-                        CalcSteps[^1] = "=" + CalcSteps[^1];
+                        equalSign = "=";
+
+                    //Insert Dynamic lighedstegn
+                    for (int i = 0; i < CalcSteps.Count; i++)
+                        CalcSteps[i] = $"{Variable.Replace(" ", "")}{equalSign}{CalcSteps[i]}";
                 }
-                else
-                    CalcSteps[^1] = "=" + CalcSteps[^1];
             }
             else
             {
@@ -81,76 +119,65 @@ public class NestedCalculator
                 TextSteps.Clear();
                 CalcSteps.Add("Result = NaN");
             }
+
+            //Last Formatting - Round to specific decimals value
+            CalcSteps = CalculationDoneFormatting(CalcSteps);
+
+            //LaTeX converter tjekning og LaTeX conversion
+            settings.TryGetValue("LaTeX", out (int?, bool?) convert2LaTeX);
+            if (convert2LaTeX.Item2 ?? false)
+                for (int i = 0; i < CalcSteps.Count; i++)
+                    CalcSteps[i] = ConvertExpression(CalcSteps[i]);
         }
-        else
-        {
-            Decimals = deciValue.Item1 ?? 3;
-            CalcSteps.Add(Expression);
-            Result = Calculate(Expression);
-        }
-        Console.WriteLine("Variable = "+Variable);
-        for (int i = 0; i < CalcSteps.Count; i++)
-            if ((i + 1) != CalcSteps.Count)
-                CalcSteps[i] = $"{Variable.Replace(" ", "")}={CalcSteps[i]}";
-            else
-                CalcSteps[i] = $"{Variable.Replace(" ", "")}{CalcSteps[i]}";
-        settings.TryGetValue("LaTeX", out (int?, bool?) convert2LaTeX);
-        if (convert2LaTeX.Item2 ?? false)
-            for (int i = 0; i < CalcSteps.Count; i++)
-                CalcSteps[i] = ConvertExpression(CalcSteps[i]);
     }
     #endregion
     #region StringCalculator
-    private decimal? Calculate(string input)
+    private decimal? Calculate(string input, bool steps)
     {
+        //Replace decimal-point
         input = input.Replace(',', '.');
         Queue<string> postfixQueue = ConvertToPostfix(input);
-        return EvaluatePostfix(postfixQueue);
+        return EvaluatePostfix(postfixQueue, steps);
     }
     private string ReplaceConstants(string input)
     {
-        //Here you add the constants. First the constant then the value
+        //Replace the constants with their values in MathConstants
         List<(string, decimal)> ConstantList = MathConstants;
         #region Dont edit this!
         input = input.Replace(@" ", "");
         foreach ((string, decimal) constant in ConstantList)
-            input = input.Replace(constant.Item1, Math.Round(constant.Item2, Decimals).ToString());
+            input = input.Replace(constant.Item1, System.Math.Round(constant.Item2, Decimals).ToString());
         return input;
         #endregion
     }
     private Queue<string> ConvertToPostfix(string expression)
     {
+        //Instanciating
         Queue<string> outputQueue = new();
         Stack<string> operatorStack = new();
-
-        #region Free to edit, but only for adding operators!
-        //Add the operator, and the number which is based on where in the math hierarki, the operator is (the higher in the hierarki, the higher number).
-
         Dictionary<string, int> precedence = new();
         foreach ((string, bool, int) op in GetOperators)
             precedence.Add(op.Item1, op.Item3);
-
-        //Make the regex for the specific operator. Remember that it need to be dynamic, so use the '?' in the regex
         List<Regex> OperatorRegex = SearchOperatorRegex;
         string Pattern = "";
         for (int i = 0; i < OperatorRegex.Count; i++)
             Pattern += $"|{OperatorRegex[i]}";
         Regex FullOperatorRegex = new(Pattern[1..]);
-        #endregion
-
-        #region Do not edit!
         MatchCollection matches = FullOperatorRegex.Matches(expression);
+
         for (int i = 0; i < matches.Count; i++)
         {
             string Operator = matches[i].Value;
+            // Håndter negativ operator og lav det til en Operator for sig selv
             if (Operator == "-" && (i == 0 || IsOperator(matches[i - 1].ToString()).Item1 || matches[i - 1].ToString() == "("))
             {
-                // Håndter negativ operator og lav det til en Operator for sig selv
                 outputQueue.Enqueue("-1");
                 operatorStack.Push("*");
             }
-            else if (double.TryParse(Operator, NumberStyles.Any, CultureInfo.InvariantCulture, out _))
+            //Tjek om Operator er et tal
+            else if (decimal.TryParse(Operator, NumberStyles.Any, CultureInfo.InvariantCulture, out _))
                 outputQueue.Enqueue(Operator);
+            //Håndter nogle parentheser 
             else if (Operator == "(")
                 operatorStack.Push(Operator);
             else if (Operator == ")")
@@ -171,6 +198,7 @@ public class NestedCalculator
             }
         }
 
+        //Tjek om der er samme antal parenteser
         while (operatorStack.Count > 0)
         {
             if (operatorStack.Peek() == "(")
@@ -179,15 +207,20 @@ public class NestedCalculator
         }
 
         return outputQueue;
-        #endregion
     }
-    private decimal? EvaluatePostfix(Queue<string> postfixQueue)
+    private decimal? EvaluatePostfix(Queue<string> postfixQueue, bool steps)
     {
-        Stack<decimal?> valueStack = new();
+        //Instanciate
+        Stack<decimal?> valueStack = new(); 
+        string Operator;
+        decimal? a, b;
+        (bool, bool) isOperator;
+
+        //Evaluate hver item i stacken en efter en
         while (postfixQueue.Count > 0)
         {
-            string Operator = postfixQueue.Dequeue().Replace(',', '.');
-            (bool, bool) isOperator = IsOperator(Operator);
+            Operator = postfixQueue.Dequeue().Replace(',', '.');
+            isOperator = IsOperator(Operator);
             if (decimal.TryParse(Operator, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal number))
                 valueStack.Push(number);
             else if (isOperator.Item1)
@@ -195,19 +228,20 @@ public class NestedCalculator
                 if (valueStack.Count < 1)
                     throw new ArgumentException("Invalid expression.");
 
-                decimal? a = valueStack.Pop();
-                decimal? b = 0;
+                //Declaring instances
+                a = valueStack.Pop();
+                b = 0;
                 if (!isOperator.Item2)
                     b = valueStack.Pop();
-                #region Free to edit, but only for adding operators!
-                valueStack.Push(Calculator(Operator, a, b, Decimals, CalcSteps, TextSteps));
-                #endregion Free to edit, but only for adding operators!
+
+                //Calculate
+                valueStack.Push(Calculator(Operator, a, b, steps, CalcSteps, TextSteps));
             }
             else
                 throw new ArgumentException("Invalid operator in the expression.");
         }
 
-        if (valueStack.Count != 1)
+        if (valueStack.Count < 1)
             throw new ArgumentException("Invalid expression.");
 
         return valueStack.Pop();
@@ -215,16 +249,14 @@ public class NestedCalculator
     private (bool, bool) IsOperator(string Operator)
     {
         List<(string, bool, int)> Operators = GetOperators;
-        #region Dont edit!
         foreach ((string, bool, int) op in Operators)
             if (op.Item1 == Operator || op.Item2 && Operator.StartsWith(op.Item1))
                 return (true, op.Item2);
         return (false, false);
-        #endregion
     }
     #endregion
     #region Engine Info
-    private decimal? Calculator(string Operator, decimal? aa, decimal? bb, int decimals, List<string> CalcSteps, List<string> TextSteps)
+    private decimal? Calculator(string Operator, decimal? aa, decimal? bb, bool steps, List<string> CalcSteps, List<string> TextSteps)
     {
         //Return values
         decimal? Value = 0;
@@ -232,19 +264,14 @@ public class NestedCalculator
         string Text = "";
         decimal a = 0;
         decimal b = 0;
-        switch (Operator)
+        switch (Operator) 
         {
             case "^":
                 if (aa == null || bb == null)
                     return null;
-                else
-                {
-                    a = aa ?? 0;
-                    b = bb ?? 0;
-                }
-                if (decimals > 15)
-                    decimals = 15;
-                Value = Dou2Dec(Math.Round(Math.Pow((double)b, (double)a), decimals));
+                a = aa ?? 0;
+                b = bb ?? 0;
+                Value = (decimal)System.Math.Pow((double)b, (double)a);
                 Step[0] = $"(({b})^({a}))";
                 Step[1] = $"(({b})^{a})";
                 Step[2] = $"({b}^({a}))";
@@ -258,12 +285,9 @@ public class NestedCalculator
             case "*":
                 if (aa == null || bb == null)
                     return null;
-                else
-                {
-                    a = aa ?? 0;
-                    b = bb ?? 0;
-                }
-                Value = Math.Round(b * a, decimals);
+                a = aa ?? 0;
+                b = bb ?? 0;
+                Value = b * a;
                 Step[0] = $"(({b})*({a}))";
                 Step[1] = $"(({b})*{a})";
                 Step[2] = $"({b}*({a}))";
@@ -277,12 +301,9 @@ public class NestedCalculator
             case "/":
                 if (aa == null || bb == null)
                     return null;
-                else
-                {
-                    a = aa ?? 0;
-                    b = bb ?? 0;
-                }
-                Value = Math.Round(b / a, decimals);
+                a = aa ?? 0;
+                b = bb ?? 0;
+                Value = b / a;
                 Step[0] = $"(({b})/({a}))";
                 Step[1] = $"(({b})/{a})";
                 Step[2] = $"({b}/({a}))";
@@ -296,12 +317,9 @@ public class NestedCalculator
             case "+":
                 if (aa == null || bb == null)
                     return null;
-                else
-                {
-                    a = aa ?? 0;
-                    b = bb ?? 0;
-                }
-                Value = Math.Round(b + a, decimals);
+                a = aa ?? 0;
+                b = bb ?? 0;
+                Value = b + a;
                 Step[0] = $"(({b})+({a}))";
                 Step[1] = $"(({b})+{a})";
                 Step[2] = $"({b}+({a}))";
@@ -315,12 +333,9 @@ public class NestedCalculator
             case "-":
                 if (aa == null || bb == null)
                     return null;
-                else
-                {
-                    a = aa ?? 0;
-                    b = bb ?? 0;
-                }
-                Value = Math.Round(b - a, decimals);
+                a = aa ?? 0;
+                b = bb ?? 0;
+                Value = b - a;
                 Step[0] = $"(({b})-({a}))";
                 Step[1] = $"(({b})-{a})";
                 Step[2] = $"({b}-({a}))";
@@ -337,14 +352,11 @@ public class NestedCalculator
                 {
                     if (aa == null)
                         return null;
-                    else
-                        a = aa ?? 0;
-                    if (decimals > 15)
-                        decimals = 15;
+                    a = aa ?? 0;
                     //sqrt
                     if (Operator == "sqrt")
                     {
-                        Value = Dou2Dec(Math.Round(Math.Sqrt((double)a), decimals));
+                        Value = (decimal)System.Math.Sqrt((double)a);
                         Step[0] = $"(sqrt({a}))";
                         Step[1] = $"sqrt({a})";
                         Text = $"Kvadratroden udregnes";
@@ -353,7 +365,7 @@ public class NestedCalculator
                     else if (Operator.StartsWith("sqrt[") && Operator.EndsWith("]"))
                     {
                         decimal baseValue = decimal.Parse(Operator[5..^1], CultureInfo.InvariantCulture); // Extract the number from "sqrt[...]"
-                        Value = Dou2Dec(Math.Round(Math.Pow((double)a, 1.0 / (double)baseValue), decimals));
+                        Value = (decimal)System.Math.Pow((double)a, 1.0 / (double)baseValue);
                         Step[0] = $"(sqrt[{baseValue}]({a}))";
                         Step[1] = $"sqrt[{baseValue}]({a})";
                         Text = $"Roden til {baseValue} udregnes";
@@ -363,45 +375,41 @@ public class NestedCalculator
                 {
                     if (aa == null)
                         return null;
-                    else
-                        a = aa ?? 0;
-                    if (decimals > 15)
-                        decimals = 15;
+                    a = aa ?? 0;
                     //log
                     if (Operator == "log")
                     {
-                        Value = Dou2Dec(Math.Round(Math.Log10((double)a), decimals));
+                        Value = (decimal)System.Math.Log10((double)a);
                         Step[0] = $"(log({a}))";
                         Step[1] = $"log({a})";
                         Text = $"Log udregnes";
                     }
                     //log[n]
-                    else if (Operator.StartsWith("log_(") && Operator.EndsWith(")"))
+                    else if (Operator.StartsWith("log[") && Operator.EndsWith("]"))
                     {
-                        decimal baseValue = decimal.Parse(Operator[5..^1], CultureInfo.InvariantCulture); // Extract the number from "log[...]"
-                        Value = Dou2Dec(Math.Round(Math.Log((double)a, (double)baseValue), decimals));
-                        Step[0] = $"(log_({baseValue})({a}))";
-                        Step[1] = $"log_({baseValue})({a})";
+                        decimal baseValue = decimal.Parse(Operator[4..^1], CultureInfo.InvariantCulture); // Extract the number from "log[...]"
+                        Value = (decimal)System.Math.Log((double)a, (double)baseValue);
+                        Step[0] = $"(log[{baseValue}]({a}))";
+                        Step[1] = $"log[{baseValue}]({a})";
                         Text = $"Log med basen {baseValue} udregnes";
                     }
                 }
                 else if (Operator.Contains("sin") || Operator.Contains("cos") || Operator.Contains("tan"))
                 {
+                    if (aa == null)
+                        return null;
+                    a = aa ?? 0;
+                    Value = a;
+                    //Convert from or to Radians
+                    if (Settings.TryGetValue("Radians", out (int?, bool?) value) && value.Item2 == false)
+                        Value = decimal.Parse(((double)Value / 180 / System.Math.PI).ToString());
+
                     if (Operator.Contains("sin"))
                     {
-                        if (aa == null)
-                            return null;
-                        else
-                            a = aa ?? 0;
-                        if (decimals > 15)
-                            decimals = 15;
                         //sin
                         if (Operator == "sin")
                         {
-                            Value = a;
-                            if (Settings.TryGetValue("Radians", out (int?, bool?) value) && value.Item2 == false)
-                                Value = decimal.Parse(((double)Value / 180 / Math.PI).ToString());
-                            Value = Dou2Dec(Math.Round(Math.Sin((double)Value), decimals));
+                            Value = (decimal)System.Math.Sin((double)Value);
                             Step[0] = $"(sin({a}))";
                             Step[1] = $"sin({a})";
                             Text = $"Sinus udregnes";
@@ -409,10 +417,7 @@ public class NestedCalculator
                         //sin^(-1)
                         else if (Operator == "sin^(-1)")
                         {
-                            Value = a;
-                            if (Settings.TryGetValue("Radians", out (int?, bool?) value) && value.Item2 == false)
-                                Value = decimal.Parse(((double)Value / 180 / Math.PI).ToString());
-                            Value = Dou2Dec(Math.Round(Math.Asin((double)Value), decimals));
+                            Value = (decimal)System.Math.Asin((double)Value);
                             Step[0] = $"(sin^(-1)({a}))";
                             Step[1] = $"sin^(-1)({a})";
                             Text = $"Sinus udregnes";
@@ -420,19 +425,10 @@ public class NestedCalculator
                     }
                     else if (Operator.Contains("cos"))
                     {
-                        if (aa == null)
-                            return null;
-                        else
-                            a = aa ?? 0;
-                        if (decimals > 15)
-                            decimals = 15;
                         //cos
                         if (Operator == "cos")
                         {
-                            Value = a;
-                            if (Settings.TryGetValue("Radians", out (int?, bool?) value) && value.Item2 == false)
-                                Value = decimal.Parse(((double)Value / 180 / Math.PI).ToString());
-                            Value = Dou2Dec(Math.Round(Math.Cos((double)Value), decimals));
+                            Value = (decimal)System.Math.Cos((double)Value);
                             Step[0] = $"(cos({a}))";
                             Step[1] = $"cos({a})";
                             Text = $"Cosinus udregnes";
@@ -440,10 +436,7 @@ public class NestedCalculator
                         //cos^(-1)
                         else if (Operator == "cos^(-1)")
                         {
-                            Value = a;
-                            if (Settings.TryGetValue("Radians", out (int?, bool?) value) && value.Item2 == false)
-                                Value = decimal.Parse(((double)Value / 180 / Math.PI).ToString());
-                            Value = Dou2Dec(Math.Round(Math.Acos((double)Value), decimals));
+                            Value = (decimal)System.Math.Acos((double)Value);
                             Step[0] = $"(cos^(-1)({a}))";
                             Step[1] = $"cos^(-1)({a})";
                             Text = $"Cosinus udregnes";
@@ -451,19 +444,10 @@ public class NestedCalculator
                     }
                     else if (Operator.Contains("tan"))
                     {
-                        if (aa == null)
-                            return null;
-                        else
-                            a = aa ?? 0;
-                        if (decimals > 15)
-                            decimals = 15;
                         //tan
                         if (Operator == "tan")
                         {
-                            Value = a;
-                            if (Settings.TryGetValue("Radians", out (int?, bool?) value) && value.Item2 == false)
-                                Value = decimal.Parse(((double)Value / 180 / Math.PI).ToString());
-                            Value = Dou2Dec(Math.Round(Math.Tan((double)Value), decimals));
+                            Value = (decimal)System.Math.Tan((double)Value);
                             Step[0] = $"(tan^(-1)({a}))";
                             Step[1] = $"tan^(-1)({a})";
                             Text = $"Tangens udregnes";
@@ -471,10 +455,7 @@ public class NestedCalculator
                         //tan^(-1)
                         else if (Operator == "tan^(-1)")
                         {
-                            Value = a;
-                            if (Settings.TryGetValue("Radians", out (int?, bool?) value) && value.Item2 == false)
-                                Value = decimal.Parse(((double)Value / 180 / Math.PI).ToString());
-                            Value = Dou2Dec(Math.Round(Math.Atan((double)Value), decimals));
+                            Value = (decimal)System.Math.Atan((double)Value);
                             Step[0] = $"(tan^(-1)({a}))";
                             Step[1] = $"tan^(-1)({a})";
                             Text = $"Tangens udregnes";
@@ -485,18 +466,22 @@ public class NestedCalculator
                     throw new ArgumentException("Invalid operator.");
                 break;
         };
-        foreach (string calc in Step.Where(x => !string.IsNullOrEmpty(x)))
+        if (steps)
         {
-            if (CalcSteps[^1].Contains(calc))
+            foreach (string calc in Step.Where(x => !string.IsNullOrEmpty(x)))
             {
-                CalcSteps.Add(CalcSteps[^1].Replace(calc, Value.ToString()));
-                TextSteps.Add(Text);
-                break;
+                if (CalcSteps[^1].Contains(calc))
+                {
+                    CalcSteps.Add(CalcSteps[^1].Replace(calc, Value.ToString()));
+                    TextSteps.Add(Text);
+                    break;
+                }
             }
+            //Change the first one formatting, without disturbing the rest
+            if (CalcSteps.Count > 1)
+                CalcSteps[^2] = AfterCalculationFormatting(CalcSteps[^2]);
         }
-        //Change the first one formatting, without disturbing the rest
-        if (CalcSteps.Count > 1)
-            CalcSteps[^2] = AfterCalculationFormatting(CalcSteps[^2]);
+        
         return Value;
     }
     // Info
@@ -504,8 +489,8 @@ public class NestedCalculator
     {
         new(@"[+\-*/^()]"), // +,-,*,/,^,()
         new(@"\d+(\.\d+)?"), // Numbers: 0-9
-        new(@"\bsqrt(\[-?\d+(\.\d+)?\])?"), // sqrt[n](x) or sqrt(x)
-        new(@"\blog(_\(-?\d+(\.\d+)?\))?"), // log[n](x) or log(x)
+        new(@"\bsqrt(\[.*\])?"), // sqrt[n](x) or sqrt(x)
+        new(@"\blog(\[.*\])?"), // log[n](x) or log(x)
         new(@"\bsin(\^\(-1\))?"), // sin^(-1)(x) or sin(x)
         new(@"\bcos(\^\(-1\))?"), // cos^(-1)(x) or cos(x)
         new(@"\btan(\^\(-1\))?"), // tan^(-1)(x) or tan(x)
@@ -524,25 +509,21 @@ public class NestedCalculator
         ("+", false, 1),
         ("-", false, 1),
     };
+    private readonly Regex[] SpecialRegexParenthesis =
+    {
+        new(@"(\bsqrt)"),
+        new(@"(\bsin)"),
+        new(@"(\bcos)"),
+        new(@"(\btan)"),
+        new(@"(\blog)"),
+    };
     private readonly List<(string, decimal)> MathConstants = new()
     {
         ("pi", (decimal)3.1415926535897932384626433832),
         ("phi", (decimal)1.6180339887498948482045868343),
         ("varphi", (decimal)1.6180339887498948482045868343),
     };
-    private readonly Dictionary<string, (int?, bool?)> Settings = new()
-    {
-        { "Radians", (null, null) },
-    };
-    #endregion
-    #region Converters
-    private decimal? Dou2Dec(double check)
-    {
-        if (double.IsNormal(check))
-            return decimal.Parse(check.ToString());
-        else
-            return null;
-    }
+    private readonly Dictionary<string, (int?, bool?)> Settings = new();
     #endregion
     #region Formatting
     private string PreCalculationFormatting(string input)
@@ -551,10 +532,28 @@ public class NestedCalculator
         List<(int, int)> MatchedParenthesis;
         int where;
         int LeftParenthesis = 0;
-        int RightParenthesis;
+        int RightParenthesis = 0;
+        int LeftParenthesis2 = 0;
+        int RightParenthesis2 = 0;
         Match match;
         MatchCollection matchCollection;
         input = input.Replace('.', ',');
+
+        //Calculate Special Operator values
+        Regex = new(@"(?<!§)\[.*\]");
+        while ((match = Regex.Match(input)).Success)
+        {
+            decimal? CalcValue;
+            string value = match.Value[1..^1];
+            foreach ((string Operator, _, _) in GetOperators)
+                if (value.Contains(Operator))
+                {
+                    CalcValue = Calculate(value, false);
+                    input = input.Replace(match.Value, $"§[{CalcValue}]");
+                    break;
+                }
+        }
+        input = input.Replace("§", "");
 
         //Insert Parenthesis rundt om [-n]^, så vi sikrer os at den bliver udregnet før den bliver lagt sammen med andet, til venstre for ^
         Regex = new(@"-(\d+(\,\d+)?)\^");
@@ -576,6 +575,15 @@ public class NestedCalculator
             input = input.Insert(RightParenthesis, ")");
         }
 
+        Regex = new(@"_(-?\d+(\,\d+)?)");
+        while ((match = Regex.Match(input)).Success)
+        {
+            where = match.Index + 1;
+            RightParenthesis = where + match.Value[..^1].Length + 1;
+            input = input.Insert(where, "(");
+            input = input.Insert(RightParenthesis, ")");
+        }
+
         //Parentes rundt om efter ^ hvis calculable inside
         Regex = new(@"(?<!\))\)\^");
         Regex numbers = new(@"(-?\d+(\,\d+)?)");
@@ -585,7 +593,7 @@ public class NestedCalculator
         while ((match = Regex.Match(input)).Success && matchCollection1.Count > count)
         {
             RightParenthesis = match.Index;
-            MatchedParenthesis = FindMatchingParentheses(input);
+            MatchedParenthesis = FindMatchingParentheses(input, '(', ')');
             foreach ((int, int) parMatch in MatchedParenthesis)
                 if (parMatch.Item2 == RightParenthesis)
                     LeftParenthesis = parMatch.Item1 + 1;
@@ -602,33 +610,69 @@ public class NestedCalculator
             }
             count++;
         }
-
         //Insert Parenthesis rundt om sqrt, så vi sikrer os at den bliver udregnet før den bliver lagt sammen med andet, til venstre for sqrt
-        Regex = new(@"(?<!\()((\bsqrt(\[-?\d+(\,\d+)?\])?)|(\bsin(\^\(-1\))?)|(\\bcos(\^\(-1\))?)|(\btan(\^\(-1\))?))");
+        string fullRegex = "";
+        foreach (Regex iRegex in SpecialRegexParenthesis)
+            fullRegex += $"|{iRegex}";
+        Regex = new(@$"(?<!\()({fullRegex[1..]})");
+        Regex numberRegex = new(@"\d+(\,\d+)?");
         while ((match = Regex.Match(input)).Success)
         {
+            int addInt = 0;
             where = match.Index;
             LeftParenthesis = where + match.Length;
             RightParenthesis = 0;
-            MatchedParenthesis = FindMatchingParentheses(input);
-            foreach ((int, int) item in MatchedParenthesis)
-                if (item.Item1 == LeftParenthesis)
+            if (input[LeftParenthesis] == '[')
+                MatchedParenthesis = FindMatchingParentheses(input, '[', ']');
+            else
+                MatchedParenthesis = FindMatchingParentheses(input, '(', ')');
+            foreach ((int left, int right) parMatch in MatchedParenthesis)
+                if (LeftParenthesis == parMatch.left)
+                    RightParenthesis = parMatch.right;
+
+            string checkText = input.Substring(LeftParenthesis + 1, RightParenthesis - LeftParenthesis - 1);
+            matchCollection = numberRegex.Matches(checkText);
+            if (input[LeftParenthesis] == '(')
+            {
+                if (matchCollection.Count > 1)
                 {
-                    RightParenthesis = item.Item2;
-                    break;
-                }
-            input = input.Insert(RightParenthesis, ")");
-            input = input.Insert(where, "(");
-            LeftParenthesis += 1;
-            RightParenthesis += 2;
-            string CheckForOperators = input.Substring(LeftParenthesis + 1, RightParenthesis - LeftParenthesis - 2);
-            foreach ((string Operator, bool, int) item in GetOperators)
-                if (CheckForOperators.Contains(item.Operator))
-                {
-                    input = input.Insert(LeftParenthesis, "(");
                     input = input.Insert(RightParenthesis, ")");
-                    break;
+                    input = input.Insert(LeftParenthesis + 1, "(");
+                    RightParenthesis += 2;
                 }
+
+                //Insert Around
+                input = input.Insert(RightParenthesis + 1, ")");
+                input = input.Insert(where, "(");
+            }
+            else if (input[LeftParenthesis] == '[')
+            {
+                if (matchCollection.Count > 1)
+                {
+                    input = input.Insert(RightParenthesis, ")");
+                    input = input.Insert(LeftParenthesis + 1, "(");
+                    addInt += 2;
+                }
+                LeftParenthesis2 = RightParenthesis + addInt + 1;
+                MatchedParenthesis = FindMatchingParentheses(input, '(', ')');
+
+                //Check næste parentes
+                foreach ((int left, int right) parMatch in MatchedParenthesis)
+                    if (LeftParenthesis2 == parMatch.left)
+                        RightParenthesis2 = parMatch.right;
+                checkText = input.Substring(LeftParenthesis2 + 1, RightParenthesis2 - LeftParenthesis2 - 1); 
+                matchCollection = numberRegex.Matches(checkText);
+                if (matchCollection.Count > 1)
+                {
+                    input = input.Insert(RightParenthesis2, ")");
+                    input = input.Insert(LeftParenthesis2 + 1, "(");
+                    RightParenthesis2 += 2;
+                }
+
+                //Insert Around
+                input = input.Insert(RightParenthesis2 + 1, ")");
+                input = input.Insert(where, "(");
+            }
         }
 
         //Lav om til integer hvis n.0
@@ -664,7 +708,7 @@ public class NestedCalculator
             else
                 input = ReplaceAtIndex(input, (where, 2), "-");
         }
-        
+
         return input;
     }
     private string AfterCalculationFormatting(string input)
@@ -675,6 +719,7 @@ public class NestedCalculator
         int LeftParenthesis2;
         int RightParenthesis = 0;
         int RightParenthesis2 = 0;
+        int where;
         input = input.Replace('.', ',');
         Match match;
 
@@ -688,26 +733,13 @@ public class NestedCalculator
             input = input.Insert(RightParenthesis, ")");
         }
 
-        //Remove '('sqrt(...)')'
-        Regex = new(@"(\(\bsqrt)|(\(\bsin)");
-        while ((match = Regex.Match(input)).Success)
-        {
-            LeftParenthesis = match.Index;
-            ParenthesisMatches = FindMatchingParentheses(input);
-            foreach ((int left, int right) parMatch in ParenthesisMatches)
-                if (LeftParenthesis == parMatch.left)
-                    RightParenthesis = parMatch.right;
-            input = input.Remove(LeftParenthesis, 1);
-            input = input.Remove(RightParenthesis - 1, 1);
-        }
-
         //Remove UnNeededParenthesis
         Regex = new(@"(?<!§)\(\(");
         while ((match = Regex.Match(input)).Success)
         {
             LeftParenthesis = match.Index;
             LeftParenthesis2 = match.Index + 1;
-            ParenthesisMatches = FindMatchingParentheses(input);
+            ParenthesisMatches = FindMatchingParentheses(input, '(', ')');
             foreach ((int, int) parMatch in ParenthesisMatches)
             {
                 if (LeftParenthesis == parMatch.Item1)
@@ -732,7 +764,7 @@ public class NestedCalculator
         MatchCollection matchCollection = Regex.Matches(input);
         foreach (Match matcha in matchCollection.Cast<Match>())
         {
-            int where = matcha.Index;
+            where = matcha.Index;
             string number = matcha.Value[1..];
             input = input.Insert(where + number.Length, ")").Insert(where, "(");
         }
@@ -742,9 +774,121 @@ public class NestedCalculator
         matchCollection = Regex.Matches(input);
         foreach (Match matcha in matchCollection.Cast<Match>())
         {
-            int where = matcha.Index;
+            where = matcha.Index;
             string number = matcha.Value[1..];
             input = input.Insert(where + number.Length + 1, ")").Insert(where + 1, "(");
+        }
+
+        //Lav om til integer hvis n.0
+        Regex = new(@"(\d+(\,\d+))");
+        matchCollection = Regex.Matches(input);
+        int substractValue = 0;
+        foreach (Match item in matchCollection.Cast<Match>())
+        {
+            where = item.Index - substractValue;
+            if (double.IsInteger(double.Parse(item.Value)))
+            {
+                substractValue += item.Value.Split(',')[1].Length + 1;
+                input = input.Remove(where, item.Length).Insert(where, $"{item.Value.Split(',')[0]}");
+            }
+        }
+
+        Regex = new(@"--");
+        while ((match = Regex.Match(input)).Success)
+        {
+            where = match.Index;
+            if (input[where - 1] == '(')
+                input = input.Remove(where, 2);
+            else
+                input = ReplaceAtIndex(input, (where, 2), "+");
+        }
+
+        Regex = new(@"(\+-)|(-\+)");
+        while ((match = Regex.Match(input)).Success)
+        {
+            where = match.Index;
+            if (input[where - 1] == '(')
+                input = input.Remove(where, 2);
+            else
+                input = ReplaceAtIndex(input, (where, 2), "-");
+        }
+
+        return input;
+    }
+    private List<string> CalculationDoneFormatting(List<string> inputs)
+    {
+        Regex regex = new(@"\d+\,\d+");
+        MatchCollection matchCollection;
+        int where;
+        for (int i = 0; i < inputs.Count; i++)
+        {
+            matchCollection = regex.Matches(inputs[i]);
+            foreach (Match match in matchCollection.Cast<Match>())
+                inputs[i] = inputs[i].Replace(match.Value, System.Math.Round(decimal.Parse(match.Value), Decimals).ToString());
+
+            inputs[i] = inputs[i].Replace('.', ',');
+            //Lav om til integer hvis n.0
+            regex = new(@"(\d+(\,\d+))");
+            matchCollection = regex.Matches(inputs[i]);
+            int substractValue = 0;
+            foreach (Match item in matchCollection.Cast<Match>())
+            {
+                where = item.Index - substractValue;
+                if (double.IsInteger(double.Parse(item.Value)))
+                {
+                    substractValue += item.Value.Split(',')[1].Length + 1;
+                    inputs[i] = inputs[i].Remove(where, item.Length).Insert(where, $"{item.Value.Split(',')[0]}");
+                }
+            }
+        }
+
+        return inputs;
+    }
+    private string CalculationDoneFormatting(string input)
+    {
+        input = input.Replace('.', ',');
+        Regex regex = new(@"\d+\,\d+");
+        MatchCollection matchCollection;
+        int where;
+        matchCollection = regex.Matches(input);
+        foreach (Match match in matchCollection.Cast<Match>())
+            input = input.Replace(match.Value, System.Math.Round(decimal.Parse(match.Value), Decimals).ToString());
+
+        //Lav om til integer hvis n.0
+        regex = new(@"(\d+(\,\d+))");
+        matchCollection = regex.Matches(input);
+        int substractValue = 0;
+        foreach (Match item in matchCollection.Cast<Match>())
+        {
+            where = item.Index - substractValue;
+            if (double.IsInteger(double.Parse(item.Value)))
+            {
+                substractValue += item.Value.Split(',')[1].Length + 1;
+                input = input.Remove(where, item.Length).Insert(where, $"{item.Value.Split(',')[0]}");
+            }
+        }
+        return input;
+    }
+    private string AfterLaTeXFormatting(string input)
+    {
+        Regex Regex;
+        List<(int, int)> ParenthesisMatches;
+        int LeftParenthesis;
+        int RightParenthesis = 0;
+        input = input.Replace('.', ',');
+        Match match;
+
+        //Remove '('\sqrt(...)')' or '('\sin(...)')' or '('\cos(...)')' or '('\tan(...)')' or '('\log(...)')'
+        Regex = new(@"(\(\\\bsqrt)|(\(\\\bsin)|(\(\\\bcos)|(\\\(\btan)|(\(\\\blog)");
+        while ((match = Regex.Match(input)).Success)
+        {
+            LeftParenthesis = match.Index;
+            ParenthesisMatches = FindMatchingParentheses(input, '(', ')');
+            foreach ((int left, int right) parMatch in ParenthesisMatches)
+                if (LeftParenthesis == parMatch.left)
+                    RightParenthesis = parMatch.right;
+            input = input.Remove(LeftParenthesis, 1);
+            input = input.Remove(RightParenthesis - 1, 1);
         }
 
         return input;
@@ -756,20 +900,22 @@ public class NestedCalculator
         Regex regex;
         MatchCollection matchCollection;
         List<(int, int)> parenthesisMatches;
+        Match match;
+        int length;
         int index;
         int rightParenthesis = 0;
         int leftParenthesis;
-        int changeRightParenthesis;
+        int changeRightParenthesis = 0;
         int changeLeftParenthesis;
+
 
         #region frac{}{}
         if (expression.Contains('/'))
         {
-            Match match;
             regex = new(@"\)/\(");
             while ((match = regex.Match(expression)).Success)
             {
-                parenthesisMatches = FindMatchingParentheses(expression);
+                parenthesisMatches = FindMatchingParentheses(expression, '(', ')');
                 index = match.Index;
                 rightParenthesis = index;
                 leftParenthesis = index + 2;
@@ -803,11 +949,11 @@ public class NestedCalculator
         {
             regex = new(@"\^\(");
             matchCollection = regex.Matches(expression);
-            foreach (Match match in matchCollection.Cast<Match>())
+            foreach (Match matcha in matchCollection.Cast<Match>())
             {
-                index = match.Index;
+                index = matcha.Index;
                 leftParenthesis = index + 1;
-                parenthesisMatches = FindMatchingParentheses(expression);
+                parenthesisMatches = FindMatchingParentheses(expression, '(', ')');
                 foreach ((int, int) parMatch in parenthesisMatches)
                     if (parMatch.Item1 == leftParenthesis)
                     {
@@ -819,10 +965,6 @@ public class NestedCalculator
             }
         }
         #endregion n^x
-        #region \log{}
-        if (expression.Contains("log"))
-            expression = ConvertCommands(expression, (new Regex(@"\blog"), @"\log"), true);
-        #endregion \log{}
         #region \sin{}
         if (expression.Contains("sin"))
             expression = ConvertCommands(expression, (new Regex(@"\bsin(\^{-1})?\("), @"\sin"), true);
@@ -835,12 +977,50 @@ public class NestedCalculator
         if (expression.Contains("tan"))
             expression = ConvertCommands(expression, (new Regex(@"\btan(\^{-1})?\("), @"\tan"), true);
         #endregion \tan{}
+        #region \log{}
+        if (expression.Contains("log"))
+        {
+            regex = new(@"\blog(\[.*\])?\(");
+            while ((match = regex.Match(expression)).Success)
+            {
+                string specialOperatorExtensionAdd = "";
+                index = match.Index;
+                length = match.Length;
+                if (expression[index + 3] == '[')
+                {
+                    changeLeftParenthesis = index + 3;
+                    parenthesisMatches = FindMatchingParentheses(expression, '[', ']');
+                    foreach ((int left, int right) parMatch in parenthesisMatches)
+                        if (changeLeftParenthesis == parMatch.left)
+                            changeRightParenthesis = parMatch.right;
+                    specialOperatorExtensionAdd = "_{"+expression.Substring(changeLeftParenthesis+1, changeRightParenthesis - changeLeftParenthesis - 1)+"}";
+                }
+                leftParenthesis = index + length - 1;
+                parenthesisMatches = FindMatchingParentheses(expression, '(', ')');
+
+                foreach ((int left, int right) parMatch in parenthesisMatches)
+                {
+                    if (parMatch.left == leftParenthesis)
+                    {
+                        rightParenthesis = parMatch.right;
+                        break;
+                    }
+                }
+                string repalceValue = @"\log" + specialOperatorExtensionAdd;
+                expression = ReplaceAtIndex(expression, (leftParenthesis, 1), "{(");
+                expression = ReplaceAtIndex(expression, (rightParenthesis + 1, 1), ")}");
+
+                expression = ReplaceAtIndex(expression, (index, length - 1), repalceValue);
+            }
+        }
+        #endregion \log{}
 
         #region Symbols
         foreach ((string Symbol, string LaTeX_Symbol) in Symbols)
             expression = expression.Replace(Symbol, $"{LaTeX_Symbol} ");
         #endregion Symbols
-        return expression;
+        
+        return AfterLaTeXFormatting(expression);
     }
     private readonly List<(string Symbol, string LaTeX_Symbol)> Symbols = new()
     {
@@ -861,12 +1041,15 @@ public class NestedCalculator
             index = match.Index;
             length = match.Length;
             leftParenthesis = index + length - 1;
-            parenthesisMatches = FindMatchingParentheses(expression);
+            parenthesisMatches = FindMatchingParentheses(expression, '(', ')');
 
             foreach ((int left, int right) parMatch in parenthesisMatches)
             {
                 if (parMatch.left == leftParenthesis)
+                {
                     rightParenthesis = parMatch.right;
+                    break;
+                }
             }
             if (keepParenthesis)
             {
@@ -878,6 +1061,7 @@ public class NestedCalculator
                 expression = ReplaceAtIndex(expression, (leftParenthesis, 1), "{");
                 expression = ReplaceAtIndex(expression, (rightParenthesis, 1), "}");
             }
+
             expression = ReplaceAtIndex(expression, (index, opera.replaceOpera[1..].Length), opera.replaceOpera);
         }
         return expression;
@@ -888,38 +1072,43 @@ public class NestedCalculator
     }
     #endregion
     #region Parenthesis Matcher
-    private List<(int, int)> FindMatchingParentheses(string input)
+    private List<(int, int)> FindMatchingParentheses(string input, char left, char right)
     {
         List<(int, int)> matchingPairs = new();
         Stack<int> stack = new();
         for (int i = 0; i < input.Length; i++)
-            if (input[i] == '(')
+            if (input[i] == left)
                 stack.Push(i);
-            else if (input[i] == ')')
+            else if (input[i] == right)
                 if (stack.Count > 0)
                     matchingPairs.Add((stack.Pop(), i));
         return matchingPairs;
     }
     #endregion
     #region InsertVariablesInFormula
-    private string InsertVarialbesInFormula(string formula, Dictionary<string, decimal?> variableValues, List<(string, bool, int)> getOperators)
+    private string? InsertVariablesInFormula(string formula, Dictionary<string, decimal?> variableValues, List<(string, bool, int)> getOperators)
     {
         variableValues = variableValues.OrderByDescending(kv => kv.Key.Length).ToDictionary(kv => kv.Key, kv => kv.Value);
         formula = ReplaceOperators(formula, false, getOperators);
-        foreach (var item in variableValues)
-            if (formula.Contains(item.Key))
-                if (!string.IsNullOrEmpty(item.Value.ToString()))
-                    formula = formula.Replace(item.Key, item.Value.ToString());
+        string variable = formula.Split('=')[0].Replace(" ", "");
+        foreach (KeyValuePair<string, decimal?> dic in variableValues)
+        {
+            if (dic.Key != variable && dic.Value == null)
+                return null;
+            if (formula.Contains(dic.Key))
+                if (!string.IsNullOrEmpty(dic.Value.ToString()))
+                    formula = formula.Replace(dic.Key, dic.Value.ToString());
+        }
         return ReplaceOperators(formula, true, getOperators);
     }
     private string ReplaceOperators(string formula, bool getOriginal, List<(string, bool, int)> getOperators)
     {
         if (getOriginal)
             for (int i = 0; i < getOperators.Count; i++)
-                formula = formula.Replace($"§{i}§", getOperators[i].Item1);
+                formula = formula.Replace($" §{i}§ ", getOperators[i].Item1);
         else
             for (int i = 0; i < getOperators.Count; i++)
-                formula = formula.Replace(getOperators[i].Item1, $"§{i}§");
+                formula = formula.Replace(getOperators[i].Item1, $" §{i}§ ");
         return formula;
     }
     #endregion
