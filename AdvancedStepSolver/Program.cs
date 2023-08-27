@@ -1,42 +1,38 @@
-﻿using AdvancedStepSolver.NestedClass;
+﻿using AdvancedStepSolver;
 using System.Diagnostics;
 
 Dictionary<string, (int?, bool?)> Settings = new()
 {
-    { "#Decimals", (28, null) },
-    { "LaTeX", (null, true) },
-    { "ShowEqualSign", (null, true) },
-    { "Radians", (null, true) },
+    { "#Decimals", (null, null) },
+    { "Normal/LaTeX/MathML/OMathML", (null, null) },
+    { "ShowEqualSign", (null, null) },
+    { "Radians", (null, null) },
 };
 List<string> Calculate = new()
 {
-    "A = b * ((1 + r)^n - 1)/r",
-    "b = (A * r)/((1 + r)^n - 1)",
-    "n = log[1 + r](1 + (A * r)/b)",
+    "K = K_n/((1+r)^n)",
+    "r = sqrt[n](K_n/K) - 1",
+    "K_n = K * (1 + r)^n",
+    "n = log(K_n/K)/log(1+r)",
 };
 Dictionary<string, decimal?> VariableValues = new()
 {
-    { "A", 1m },
-    { "b", -6m },
+    { "K", 0.25m },
+    { "K_n", 0.5m },
     { "r", 3m },
-    { "n", -0.5m },
+    { "n", 0.5m },
 };
 
 
-
-
-
-
 List<long> Counter = new();
-List<string> CalcSteps = new();
-List<string> TextSteps = new();
-Stopwatch stopwatch = new();
-NestedCalculator startCalculating = new();
+List<string> CalcSteps;
+List<string> TextSteps;
+StringCalculator startCalculating = new(Settings);
 for (int i_1 = 0; i_1 < Calculate.Count; i_1++)
 {
     Console.WriteLine("-----------------------------------------");
-    stopwatch.Start();
-    startCalculating.CalculateFormula(Calculate[i_1], Settings, VariableValues);
+    Stopwatch stopwatch = Stopwatch.StartNew();
+    startCalculating.Calculate(Calculate[i_1], VariableValues);
     CalcSteps = startCalculating.CalcSteps;
     TextSteps = startCalculating.TextSteps;
     for (int i = 0; i < CalcSteps.Count; i++)
