@@ -4,6 +4,7 @@ using System.Diagnostics;
 Dictionary<string, (int?, bool?)> Settings = new()
 {
     { "#Decimals", (null, null) },
+    { "Format Formula", (null, true) },
     { "Normal/LaTeX/MathML/OMathML", (null, null) },
     { "ShowEqualSign", (null, null) },
     { "Radians", (null, null) },
@@ -27,11 +28,12 @@ Dictionary<string, decimal?> VariableValues = new()
 List<long> Counter = new();
 List<string> CalcSteps;
 List<string> TextSteps;
-StringCalculator startCalculating = new(Settings);
+StringCalculator startCalculating = new();
 for (int i_1 = 0; i_1 < Calculate.Count; i_1++)
 {
     Console.WriteLine("-----------------------------------------");
     Stopwatch stopwatch = Stopwatch.StartNew();
+    startCalculating.ChangeSettings(Settings);
     startCalculating.Calculate(Calculate[i_1], VariableValues);
     CalcSteps = startCalculating.CalcSteps;
     TextSteps = startCalculating.TextSteps;

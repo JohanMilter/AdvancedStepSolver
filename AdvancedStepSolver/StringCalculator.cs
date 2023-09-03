@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Xsl;
@@ -19,28 +18,8 @@ public class StringCalculator
     private int Format;
 
     #region Regex Patterns Readonly
-    public StringCalculator(Dictionary<string, (int?, bool?)> userSettings)
+    public StringCalculator()
     {
-        #region Settings
-        List<(string, (int?, bool?))> SettingsList = new();
-        foreach (KeyValuePair<string, (int?, bool?)> setting in Settings)
-            SettingsList.Add((setting.Key, setting.Value));
-        List<(string, (int?, bool?))> userSettingsList = new();
-        foreach (KeyValuePair<string, (int?, bool?)> setting in userSettings)
-            userSettingsList.Add((setting.Key, setting.Value));
-        Settings.Clear();
-        for (int i = 0; i < SettingsList.Count; i++)
-            foreach ((string, (int?, bool?)) setting in userSettingsList)
-                if (SettingsList[i].Item1 == setting.Item1)
-                {
-                    if (setting.Item2.Item1 is not null || setting.Item2.Item2 is not null)
-                        SettingsList[i] = (setting.Item1, setting.Item2);
-                    break;
-                }
-        foreach ((string, (int?, bool?)) setting in SettingsList)
-            Settings.Add(setting.Item1, setting.Item2);
-        #endregion Settings
-
         string fullRegex = "";
         foreach (Regex iRegex in SpecialRegexParenthesis)
             fullRegex += $"|{iRegex}";
@@ -62,10 +41,31 @@ public class StringCalculator
     private readonly Regex ParenthesisDivisionLeft = new(@"(-?\d+(\,\d+)?)/");
     private readonly Regex ParenthesisDivisionRight = new(@"/(-?\d+(\,\d+)?)");
     private readonly Regex RemoveParenthesisAroundOperators = new(@"(\(\\\bsqrt)|(\(\\\bsin)|(\(\\\bcos)|(\(\\\btan)|(\(\\\blog)");
-    private readonly Regex RemoveParenthesisAroundPositive = new(@"(?<!§)\((\d+(\,\d+)?)\)"); //(?<!\/)
+    private readonly Regex RemoveParenthesisAroundPositive = new(@"(?<!§)\((\d+(\,\d+)?)\)");
+    private readonly Regex FormulaFormat = new(@"((<\|(\d+)\|>)\*(<\|(\d+)\|>))|((<\|(\d+)\|>)\*\()");
     #endregion
 
     #region Main Calculator methods
+    public void ChangeSettings(Dictionary<string, (int?, bool?)> userSettings)
+    {
+        List<(string, (int?, bool?))> SettingsList = new();
+        foreach (KeyValuePair<string, (int?, bool?)> setting in Settings)
+            SettingsList.Add((setting.Key, setting.Value));
+        List<(string, (int?, bool?))> userSettingsList = new();
+        foreach (KeyValuePair<string, (int?, bool?)> setting in userSettings)
+            userSettingsList.Add((setting.Key, setting.Value));
+        Settings.Clear();
+        for (int i = 0; i < SettingsList.Count; i++)
+            foreach ((string, (int?, bool?)) setting in userSettingsList)
+                if (SettingsList[i].Item1 == setting.Item1)
+                {
+                    if (setting.Item2.Item1 is not null || setting.Item2.Item2 is not null)
+                        SettingsList[i] = (setting.Item1, setting.Item2);
+                    break;
+                }
+        foreach ((string, (int?, bool?)) setting in SettingsList)
+            Settings.Add(setting.Item1, setting.Item2);
+    }
     public void Calculate(string formula, Dictionary<string, decimal?> variableValues)
     {
         //Debug.WriteLine("Start: CalculateFormula");
@@ -148,7 +148,7 @@ public class StringCalculator
                 //Tjek om der skal lave et dynamisk lighedstegn
                 //(lighedstegnet ændree sig på baggrund af hvad resultatet
                 //er og mængden af decimaler man gern vil have).
-                if (Settings.TryGetValue("ShowEqualSign", out (int?, bool?) value) && value.Item2 is true)
+                if (Settings.TryGetValue("Show Equal Sign", out (int?, bool?) value) && value.Item2 is true)
                 {
                     Result = decimal.Parse(CalculationDoneFormatting(fullResult.ToString() ?? ""));
                     decimal result = fullResult ?? 0;
@@ -627,13 +627,14 @@ public class StringCalculator
     private readonly Dictionary<string, (int?, bool?)> Settings = new()
     {
         { "#Decimals", (3, null) },
+        { "Format Formula", (0, true) },
         { "Normal/LaTeX/MathML/OMathML", (0, null) },
-        { "ShowEqualSign", (null, false) },
+        { "Show Equal Sign", (null, false) },
         { "Radians", (null, true) },
     };
     #endregion
     #region Formatting
-    private string FormulaFormatting(string input, Dictionary<string, decimal?> variableValues)
+    public string FormulaFormatting(string input, Dictionary<string, decimal?> variableValues)
     {
         //Debug.WriteLine("Start: FormulaFormatting");
         List<(int, int)> MatchedParenthesis;
@@ -774,6 +775,10 @@ public class StringCalculator
                 input = input.Insert(where, "(");
             }
         }
+
+        if (Settings.TryGetValue("Format Formula", out (int?, bool?) format) && format.Item2 == true)
+            while ((match = FormulaFormat.Match(input)).Success)
+                input = input.Replace(match.Value, match.Value.Replace("*", ""));
 
         //Replace Variables
         varCount = 0;
@@ -1176,7 +1181,7 @@ public class StringCalculator
     }
     #endregion
     #region LaTeX Converter
-    private string ConvertExpression(string expression)
+    public string ConvertExpression(string expression)
     {
         //Debug.WriteLine("Start: ConvertExpression");
         Regex regex;
@@ -1355,7 +1360,7 @@ public class StringCalculator
 
         #region Symbols
         foreach ((string Symbol, string LaTeX_Symbol) in Symbols)
-            expression = expression.Replace(Symbol, $"{LaTeX_Symbol}");
+            expression = expression.Replace(Symbol, $"{LaTeX_Symbol} ");
         #endregion Symbols
 
         //Debug.WriteLine("Stop: ConvertExpression");
@@ -1363,11 +1368,11 @@ public class StringCalculator
     }
     private readonly List<(string Symbol, string LaTeX_Symbol)> Symbols = new()
     {
-        ("≈", @"\approx "),
-        ("≠", @"\neq "),
+        ("≈", @"\approx"),
+        ("≠", @"\neq"),
         ("(", @"\left("),
         (")", @"\right)"),
-        ("*", @"\cdot "),
+        ("*", @"\cdot"),
     };
     private string ConvertCommands(string expression, (Regex searchOpera, string replaceOpera) opera, bool keepParenthesis)
     {
@@ -1469,7 +1474,7 @@ public class StringCalculator
     }
     #endregion
     #region LaTeX2MML
-    private List<string> LaTeX2MML(List<string> LaTeXLines, bool mml2omml, bool IsText)
+    public List<string> LaTeX2MML(List<string> LaTeXLines, bool mml2omml, bool IsText)
     {
         #region Universal Instances
         List<string> MML = new();
@@ -1584,7 +1589,7 @@ public class StringCalculator
         #endregion
         return MML;
     }
-    private List<string> MML2OMML(List<string> MML)
+    public List<string> MML2OMML(List<string> MML)
     {
         #region Universal Instances
         List<string> officeML = new();
